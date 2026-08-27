@@ -80,9 +80,14 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--skip-reels", action="store_true", default=default,
+        help="leave out posts the profile links as reels. They are ordinary "
+             "posts of the account's own, so leaving them out loses content",
+    )
+    # Reels are included by default now, so this is a no-op.
+    parser.add_argument(
         "--include-reels", action="store_true", default=default,
-        help="also archive reels listed on a profile. Off by default: they "
-             "carry no photographs",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--log", type=Path, default=default,
@@ -172,6 +177,7 @@ FLAG_DEFAULTS = {
     "skip_videos": False,
     "videos": False,
     "include_reels": False,
+    "skip_reels": False,
     "flatten": False,
     "nested": False,
     "force": False,
@@ -189,6 +195,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # A flat account folder is the layout; --nested asks for the old one.
     # `flatten` stays the internal name because that is what it controls.
     args.flatten = not args.nested
+    # A reel is one of the account's own posts, so it is archived unless the
+    # user says otherwise. Skipping them silently lost whole posts.
+    args.include_reels = not args.skip_reels
     return args
 
 
@@ -197,10 +206,13 @@ def print_summary(summary: Summary, out_dir: Path) -> None:
     print("=" * 50)
     print(f"Posts visited        : {summary.posts_visited}")
     print(f"Posts yielding media : {summary.posts_with_media}")
-    downloaded = summary.images + summary.videos - summary.moved
+    downloaded = (summary.images + summary.videos
+                  - summary.moved - summary.refreshed)
     print(f"Files downloaded     : {max(downloaded, 0)}")
     if summary.moved:
         print(f"Files moved          : {summary.moved} (already had them)")
+    if summary.refreshed:
+        print(f"Already on disk      : {summary.refreshed} (index refreshed)")
     print(f"Images               : {summary.images}")
     print(f"Videos downloaded    : {summary.videos}")
     if summary.skipped_videos:

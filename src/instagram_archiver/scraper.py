@@ -19,7 +19,7 @@ from .config import (
     SCROLL_STAGNANT_LIMIT,
     SLIDE_PAUSE,
 )
-from .embedded import post_media, video_urls_by_position
+from .embedded import post_details, video_urls_by_position
 from .extract import current_slide, read_username
 from .metadata import date_to_epoch, iso_to_epoch, parse_og_description
 from .urls import image_key, normalise_post_url, page_url_for, post_id_from
@@ -48,6 +48,7 @@ class PostMeta:
     date: str = "unknown-date"          # YYYY-MM-DD, used in folder names
     username: str = "unknown-account"
     timestamp: float | None = None      # epoch seconds, applied to saved files
+    caption: str = ""                   # the post's text, recorded in the index
 
 
 class PrivateProfile(RuntimeError):
@@ -114,7 +115,8 @@ def collect_post_media(page, post_url, want_videos=True,
 
     # The page carries the post's own media list; when it is there we know
     # exactly which video belongs to which slide instead of inferring it.
-    known_videos = video_urls_by_position(post_media(page, post_id_from(post_url)))
+    details = post_details(page, post_id_from(post_url))
+    known_videos = video_urls_by_position(details.items if details else None)
 
     meta = PostMeta(
         date=(iso[:10] if iso else None) or og_date or "unknown-date",
@@ -123,6 +125,7 @@ def collect_post_media(page, post_url, want_videos=True,
         ),
         # Prefer the exact <time> stamp; fall back to midnight on the og date.
         timestamp=iso_to_epoch(iso) or date_to_epoch(og_date),
+        caption=details.caption if details else "",
     )
     items: list[dict] = []
     seen_images: set[str] = set()
@@ -179,13 +182,14 @@ def collect_post_media(page, post_url, want_videos=True,
 
 # ------------------------------------------------------- profile reading ---
 
-def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=False,
+def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=True,
                             record_skipped=None):
     """Scroll a profile and collect the post URLs this session can see.
 
-    Reels are skipped by default: they carry no photographs, and their video
-    cannot currently be attributed reliably (see the README). Pass
-    `record_skipped` a list to find out which ones were left out.
+    A profile links some of its own posts as `/reel/<code>/` - typically the
+    ones holding only a video. They are the account's own content, so they are
+    included by default; `--skip-reels` leaves them out, and `record_skipped`
+    collects what was left behind.
     """
     page.goto(profile_url, wait_until="domcontentloaded")
     try:
@@ -236,10 +240,8 @@ def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=Fal
 
     print(f"  found {len(urls)} posts on the profile." + " " * 20)
     if skipped_reels:
-        print(f"  skipped {len(skipped_reels)} reels; use --include-reels to "
-              f"archive them too")
-        print("    (a reel carries no photographs, so a photos-only archive")
-        print("     loses nothing by skipping it)")
+        print(f"  skipped {len(skipped_reels)} post(s) linked as reels; drop "
+              f"--skip-reels to include them")
     if not urls:
         print("  ! No posts were visible to this session. Open the profile in the")
         print("    Chromium window yourself to see what Instagram is showing you.")

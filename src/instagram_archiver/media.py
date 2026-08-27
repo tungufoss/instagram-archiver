@@ -24,9 +24,13 @@ class MediaRecord:
     relative_path: str
     source_url: str
     sha256: str
+    caption: str = ""
     # True when this run moved an existing file rather than downloading it.
     # Not part of the index on disk; it only shapes the run summary.
     relocated: bool = False
+    # True when the file was already in place and this run only refreshed what
+    # the index records about it. Also a run detail, not archive data.
+    refreshed: bool = False
 
 
 @dataclass

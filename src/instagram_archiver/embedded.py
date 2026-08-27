@@ -13,6 +13,7 @@ Nothing here requests anything. It reads what the page was already served.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
 
 COLLECT_JSON_BLOCKS_JS = """
 () => [...document.querySelectorAll('script[type="application/json"]')]
@@ -50,12 +51,27 @@ def _best_video(item: dict) -> dict | None:
     }
 
 
-def parse_blocks(blocks: list[str], code: str) -> list[dict] | None:
-    """Turn the page's JSON blocks into an ordered media list for one post.
+@dataclass
+class PostData:
+    """What the page says about one post."""
 
-    Returns one entry per carousel slide - `{"kind": "video", "url": ...}` or
-    `{"kind": "image"}` - or None when the post is not described in them.
-    """
+    items: list[dict] = field(default_factory=list)
+    caption: str = ""
+
+
+def _caption_of(media: dict) -> str:
+    caption = media.get("caption")
+    if isinstance(caption, dict):
+        text = caption.get("text")
+        if isinstance(text, str):
+            return text.strip()
+    if isinstance(caption, str):
+        return caption.strip()
+    return ""
+
+
+def parse_post(blocks: list[str], code: str) -> PostData | None:
+    """Media list and caption for one post, from the page's JSON blocks."""
     found: list[dict] = []
     for block in blocks:
         if not block or code not in block:
@@ -65,38 +81,58 @@ def parse_blocks(blocks: list[str], code: str) -> list[dict] | None:
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
 
+    best: PostData | None = None
     for media in found:
         items = media.get("carousel_media") or [media]
         if not isinstance(items, list) or not items:
             continue
-        # A description without any media detail tells us nothing useful.
         if not any(
             isinstance(i, dict) and ("video_versions" in i or "image_versions2" in i)
             for i in items
         ):
+            # No media detail, but it may still carry the caption.
+            caption = _caption_of(media)
+            if caption and best is None:
+                best = PostData(items=[], caption=caption)
             continue
 
-        out = []
+        parsed = []
         for item in items:
             if not isinstance(item, dict):
-                out.append({"kind": "image"})
+                parsed.append({"kind": "image"})
                 continue
             video = _best_video(item)
-            out.append({"kind": "video", **video} if video else {"kind": "image"})
-        return out
+            parsed.append({"kind": "video", **video} if video else {"kind": "image"})
+        return PostData(items=parsed, caption=_caption_of(media))
 
-    return None
+    return best
 
 
-def post_media(page, code: str) -> list[dict] | None:
-    """Read the media list for `code` out of the current page."""
+def parse_blocks(blocks: list[str], code: str) -> list[dict] | None:
+    """Turn the page's JSON blocks into an ordered media list for one post.
+
+    Returns one entry per carousel slide - `{"kind": "video", "url": ...}` or
+    `{"kind": "image"}` - or None when the post is not described in them.
+    """
+    post = parse_post(blocks, code)
+    return post.items if post and post.items else None
+
+
+def post_details(page, code: str) -> PostData | None:
+    """Read the media list and caption for `code` out of the current page."""
     try:
         blocks = page.evaluate(COLLECT_JSON_BLOCKS_JS)
     except Exception:
         return None
     if not blocks:
         return None
-    return parse_blocks(blocks, code)
+    return parse_post(blocks, code)
+
+
+def post_media(page, code: str) -> list[dict] | None:
+    """Just the media list, for callers that do not need the caption."""
+    details = post_details(page, code)
+    return details.items if details and details.items else None
 
 
 def video_urls_by_position(media: list[dict] | None) -> dict[int, str]:

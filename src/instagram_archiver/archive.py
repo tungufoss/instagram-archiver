@@ -56,6 +56,10 @@ class Summary:
         return sum(1 for r in self.records if r.relocated)
 
     @property
+    def refreshed(self) -> int:
+        return sum(1 for r in self.records if r.refreshed)
+
+    @property
     def skipped_videos(self) -> int:
         return sum(1 for r in self.records if r.media_type == "video_skipped")
 
@@ -129,6 +133,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
                 source_url="",
                 sha256="",
+                caption=meta.caption,
             )
         )
         shown = dest.relative_to(out_dir).as_posix()
@@ -144,6 +149,21 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
         # scratch area, and treating it as one destroyed real archives.
         existed = dest.exists()
         if already_archived(dest, hashes):
+            # The file stays exactly as it is. Its index row is still recorded,
+            # so details learned since it was saved - a caption, say - are not
+            # lost just because the bytes were already here.
+            records.append(
+                MediaRecord(
+                    post_url=post_url, username=username, post_id=post_id,
+                    post_date=post_date, media_type=media_type,
+                    carousel_index=position, filename=filename,
+                    relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
+                    source_url=source_url,
+                    sha256=hashlib.sha256(dest.read_bytes()).hexdigest(),
+                    caption=meta.caption,
+                    refreshed=True,
+                )
+            )
             print(f"  = already have {filename}")
             return
 
@@ -165,6 +185,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                         relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
                         source_url=source_url,
                         sha256=digest,
+                        caption=meta.caption,
                         relocated=True,
                     )
                 )
@@ -212,6 +233,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
                 source_url=source_url,
                 sha256=digest,
+                caption=meta.caption,
             )
         )
         # A placeholder only ever stood in for this file. Now that the real
@@ -288,7 +310,7 @@ def archive_post(context, page, post_url, out_dir, hashes, want_videos=True,
 
 def archive_profile(
     context, page, profile_url, out_dir, hashes,
-    want_videos=True, max_posts=None, flatten=False, include_reels=False,
+    want_videos=True, max_posts=None, flatten=False, include_reels=True,
     archived=None, resume=False,
 ):
     summary = Summary()

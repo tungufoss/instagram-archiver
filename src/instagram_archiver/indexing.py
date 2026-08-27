@@ -139,6 +139,7 @@ def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
     for record in records:
         row = asdict(record)
         row.pop("relocated", None)      # a run detail, not archive data
+        row.pop("refreshed", None)
         merged_by_key[(record.post_id, record.sha256,
                        record.carousel_index)] = row
     merged = list(merged_by_key.values())

@@ -76,7 +76,7 @@ def test_value_flags_work_after_the_subcommand():
 def test_unsupplied_flags_are_false_not_none():
     args = parse_args(["profile", URL])
     assert args.videos is False
-    assert args.include_reels is False
+    assert args.include_reels is True     # a reel is one of the account's posts
     assert args.flatten is True          # flat is the default layout
     assert args.headless is False
     assert args.out is None
@@ -110,3 +110,20 @@ def test_relayout_command_needs_no_url():
     assert args.command == "relayout"
     assert args.flatten is True
     assert args.dry_run is False
+
+
+# --- reels are the account's own posts ------------------------------------
+
+
+def test_reels_are_included_by_default():
+    """They are ordinary posts; skipping them silently lost whole posts."""
+    assert parse_args(["profile", URL]).include_reels is True
+
+
+def test_skip_reels_opts_out():
+    assert parse_args(["--skip-reels", "profile", URL]).include_reels is False
+    assert parse_args(["profile", URL, "--skip-reels"]).include_reels is False
+
+
+def test_old_include_reels_flag_still_parses():
+    assert parse_args(["--include-reels", "profile", URL]).include_reels is True

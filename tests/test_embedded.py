@@ -89,3 +89,47 @@ def test_a_bare_code_reference_is_not_mistaken_for_media():
 def test_malformed_video_versions_fall_back_to_image():
     payload = {"code": CODE, "carousel_media": [{"video_versions": [{"url": None}]}]}
     assert parse_blocks([block(payload)], CODE) == [{"kind": "image"}]
+
+
+# --- captions --------------------------------------------------------------
+
+
+def test_caption_is_read_from_the_media_object():
+    from instagram_archiver.embedded import parse_post
+
+    payload = carousel(["image"])
+    payload["caption"] = {"text": "  Sports day, first years  "}
+    post = parse_post([block(payload)], CODE)
+    assert post.caption == "Sports day, first years"
+
+
+def test_caption_may_be_a_plain_string():
+    from instagram_archiver.embedded import parse_post
+
+    payload = carousel(["image"])
+    payload["caption"] = "A day at the museum"
+    assert parse_post([block(payload)], CODE).caption == "A day at the museum"
+
+
+def test_missing_caption_is_empty_not_none():
+    from instagram_archiver.embedded import parse_post
+    assert parse_post([block(carousel(["image"]))], CODE).caption == ""
+
+
+def test_null_caption_is_empty():
+    from instagram_archiver.embedded import parse_post
+
+    payload = carousel(["image"])
+    payload["caption"] = None
+    assert parse_post([block(payload)], CODE).caption == ""
+
+
+def test_caption_survives_when_media_detail_lives_elsewhere():
+    """A block naming the post with only a caption still yields it."""
+    from instagram_archiver.embedded import parse_post
+
+    stub = {"code": CODE, "caption": {"text": "Winter concert"}}
+    post = parse_post([block(stub)], CODE)
+    assert post is not None
+    assert post.caption == "Winter concert"
+    assert post.items == []
