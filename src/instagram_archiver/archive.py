@@ -214,6 +214,17 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 sha256=digest,
             )
         )
+        # A placeholder only ever stood in for this file. Now that the real
+        # thing is here, it would just be a confusing duplicate.
+        if media_type != "video_skipped":
+            stale = folder / f"{prefix}{position:02d}{placeholder.SUFFIX}"
+            if stale.exists():
+                try:
+                    stale.unlink()
+                    print(f"    (replaced {stale.name})")
+                except OSError:
+                    pass
+
         shown = dest.relative_to(out_dir).as_posix()
         print(f"  + {shown}  {note}")
 

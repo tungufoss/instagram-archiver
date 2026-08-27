@@ -80,3 +80,55 @@ def test_corrupt_index_is_not_fatal(tmp_path):
 def test_empty_records_writes_nothing(tmp_path):
     write_index(tmp_path, [])
     assert not (tmp_path / "index.json").exists()
+
+
+def test_a_real_file_supersedes_its_placeholder(tmp_path):
+    """Filling in a skipped video must not leave the placeholder row behind."""
+    placeholder = MediaRecord(
+        post_url="https://www.instagram.com/p/P1/", username="someaccount",
+        post_id="P1", post_date="2026-06-08", media_type="video_skipped",
+        carousel_index=4, filename="04.video-not-saved.png",
+        relative_path="someaccount/2026-06-08_P1/04.video-not-saved.png",
+        source_url="", sha256="",
+    )
+    write_index(tmp_path, [placeholder])
+    assert len(json.loads((tmp_path / "index.json").read_text())) == 1
+
+    real = MediaRecord(
+        post_url="https://www.instagram.com/p/P1/", username="someaccount",
+        post_id="P1", post_date="2026-06-08", media_type="video",
+        carousel_index=4, filename="04.mp4",
+        relative_path="someaccount/2026-06-08_P1/04.mp4",
+        source_url="https://cdn/v.mp4", sha256="dd",
+    )
+    write_index(tmp_path, [real])
+
+    rows = json.loads((tmp_path / "index.json").read_text())
+    assert len(rows) == 1, "the placeholder row should be gone"
+    assert rows[0]["media_type"] == "video"
+    assert rows[0]["filename"] == "04.mp4"
+
+
+def test_placeholders_at_other_positions_survive(tmp_path):
+    def ph(index):
+        return MediaRecord(
+            post_url="https://www.instagram.com/p/P1/", username="someaccount",
+            post_id="P1", post_date="2026-06-08", media_type="video_skipped",
+            carousel_index=index, filename=f"{index:02d}.video-not-saved.png",
+            relative_path=f"someaccount/2026-06-08_P1/{index:02d}.video-not-saved.png",
+            source_url="", sha256="",
+        )
+    write_index(tmp_path, [ph(4), ph(6), ph(8)])
+
+    real = MediaRecord(
+        post_url="https://www.instagram.com/p/P1/", username="someaccount",
+        post_id="P1", post_date="2026-06-08", media_type="video",
+        carousel_index=6, filename="06.mp4",
+        relative_path="someaccount/2026-06-08_P1/06.mp4",
+        source_url="https://cdn/v.mp4", sha256="dd",
+    )
+    write_index(tmp_path, [real])
+
+    rows = json.loads((tmp_path / "index.json").read_text())
+    kinds = {r["carousel_index"]: r["media_type"] for r in rows}
+    assert kinds == {4: "video_skipped", 6: "video", 8: "video_skipped"}

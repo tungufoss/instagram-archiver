@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .media import MediaRecord
 
+PLACEHOLDER_TYPE = "video_skipped"
+
 INDEX_JSON = "index.json"
 INDEX_CSV = "index.csv"
 
@@ -80,8 +82,19 @@ def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     # Keyed so a new record supersedes an older one for the same content:
     # a file that moved needs its recorded path updated, not a second row.
+    # Positions where this batch saved real media: any placeholder standing in
+    # for them is now history and must not linger in the index.
+    filled = {
+        (r.post_id, r.carousel_index)
+        for r in records
+        if r.media_type != PLACEHOLDER_TYPE
+    }
+
     merged_by_key: dict[tuple, dict] = {}
     for row in _read_existing(out_dir):
+        if (row.get("media_type") == PLACEHOLDER_TYPE
+                and (row.get("post_id"), row.get("carousel_index")) in filled):
+            continue
         merged_by_key[(row.get("post_id"), row.get("sha256"),
                        row.get("carousel_index"))] = row
     for record in records:
