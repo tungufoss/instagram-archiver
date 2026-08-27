@@ -119,6 +119,18 @@ def main(argv: list[str] | None = None) -> int:
     headless = args.headless and args.command != "login"
     want_videos = not args.skip_videos
 
+    if want_videos and args.command != "login":
+        print("=" * 70)
+        print(" WARNING: video downloading is unreliable and can save the WRONG")
+        print(" video. Instagram prefetches unrelated videos on every page, and")
+        print(" this tool cannot always tell which file belongs to which slide.")
+        print(" Photographs are not affected.")
+        print("")
+        print(" Use --skip-videos for an archive you can trust.")
+        print(" See https://github.com/tungufoss/instagram-archiver/issues/8")
+        print("=" * 70)
+        print("")
+
     hashes = load_known_hashes(out_dir)
     summary = Summary()
 

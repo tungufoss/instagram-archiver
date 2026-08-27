@@ -4,6 +4,14 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+> [!WARNING]
+> **Video downloading is unreliable and can save the wrong video.** Instagram
+> prefetches unrelated videos on every page, and this tool cannot reliably tell
+> which file belongs to which slide. Verified case: within one carousel, two
+> videos were correct and one was a stranger's. **Photographs are not
+> affected.** Use `--skip-videos` for an archive you can trust.
+> Tracking: [#8](https://github.com/tungufoss/instagram-archiver/issues/8)
+
 Save local copies of Instagram photos and videos that **your own logged-in
 account can already see** — a class group, a family account, your own posts —
 at full resolution, with metadata, in a sensible folder structure.
@@ -222,7 +230,9 @@ Photos are taken at the widest candidate in each `<img>`'s `srcset`, which is
 the highest resolution Instagram served your browser — typically 2500–3900 px
 wide, far above the 640 px `og:image` preview.
 
-### Videos
+### Videos — known defect
+
+**This does not work reliably. See the warning at the top.**
 
 A `<video>` element's `src` is a `blob:` URL, so the DOM holds no downloadable
 address. Instead the tool watches the page's own network requests and keeps any
@@ -231,6 +241,12 @@ the video muted so the browser actually requests the file, waits three seconds,
 then collects what was requested. Players fetch byte ranges, so `bytestart` and
 `byteend` are stripped before downloading, which makes the CDN return the whole
 file.
+
+The flaw is attribution. Instagram requests videos the viewer never asked for -
+measured: 8 mp4 requests covering 3 distinct videos on a page where nothing was
+played. Choosing among them by size or arrival order is guesswork, and it
+guesses wrong often enough to matter. Fixing this needs the post's own media
+URLs from Instagram's GraphQL payload, which is not always served.
 
 ### Author and date
 
@@ -288,7 +304,8 @@ Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`.
 - Video quality is whatever Instagram serves your browser — typically a
   compressed rendition, not an original master.
 - Stories, highlights and archived posts are not covered.
-- Reels are the least reliable surface; see above.
+- Videos can be wrong; see the warning at the top. Photographs are sound.
+- Reels are the least reliable surface of all.
 - Instagram changes its markup without warning; selectors may need updating.
 
 ## Your data

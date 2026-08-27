@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Known issues
+
+- Video downloading can save a video belonging to another post. Instagram
+  prefetches unrelated videos on every page and this tool cannot reliably tell
+  which file belongs to which slide. Photographs are unaffected. The CLI and
+  README now warn about this; use `--skip-videos` for a trustworthy archive.
+  See [#8](https://github.com/tungufoss/instagram-archiver/issues/8).
+
 ### Added
 
 - A progress line after each post, with counts, elapsed time and an estimate.
