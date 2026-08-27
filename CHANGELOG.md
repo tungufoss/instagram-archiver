@@ -33,9 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bound.
 - **Comment capture is thin.** Only what the page has loaded is read, which is
   a handful on a busy post.
-- **View counts are not available to anyone**, including the account itself.
-  Instagram leaves `view_count` null in the served page. Recorded as blank
-  rather than zero, since a null is not a zero.
+- View counts are only available to the account itself, and only for reels.
+  Instagram leaves `view_count` null in every post's page data, but draws the
+  number on the reels tab tiles, which is where `scan` reads it. Blank rather
+  than zero for everything else.
 
 ## [0.2.0] - 2026-08-27
 

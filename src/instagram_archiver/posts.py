@@ -30,6 +30,9 @@ class PostRecord:
     post_time: str          # exact ISO timestamp when the page gave one
     kind: str               # "post" or "reel"
     likes: int
+    # Play count, from the reels tab. Only the account itself sees
+    # these; blank for everyone else, and blank for a post that is
+    # not a reel.
     views: int | None
     comments: int
     images: int

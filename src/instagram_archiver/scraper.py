@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from . import comments as comment_reader
+from . import views as views_reader
 from .config import (
     MAX_SLIDES,
     SCROLL_PAUSE,
@@ -29,6 +30,7 @@ from .urls import (
     normalise_post_url,
     page_url_for,
     post_id_from,
+    username_from_profile_url,
 )
 
 # Instagram words this as "profile" or "account" depending on the surface.
@@ -65,7 +67,6 @@ class PostMeta:
     comments: list = field(default_factory=list)
     comment_count: int = 0              # how many the post has in total
     like_count: int = 0
-    view_count: int | None = None
     timestamp_iso: str = ""             # the post's exact time, when known
 
 
@@ -152,7 +153,6 @@ def collect_post_media(page, post_url, want_videos=True,
         comments=details.comments if details else [],
         comment_count=details.comment_count if details else 0,
         like_count=details.like_count if details else 0,
-        view_count=details.view_count if details else None,
         timestamp_iso=iso or og_date or "",
     )
 
@@ -285,7 +285,7 @@ def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=Tru
     return urls[:max_posts] if max_posts else urls
 
 
-def scan_post(page, post_url, username_hint=None):
+def scan_post(page, post_url, username_hint=None, views=None):
     """Describe a post without downloading anything.
 
     Everything needed is in the page: the media list, the counts and the
@@ -314,8 +314,7 @@ def scan_post(page, post_url, username_hint=None):
         "post_time": iso or "",
         "kind": "reel" if "/reel/" in post_url else "post",
         "likes": details.like_count if details else 0,
-        # Blank rather than zero when Instagram will not say.
-        "views": (details.view_count if details else None),
+        "views": (views or {}).get(code),
         "comments": details.comment_count if details else 0,
         "images": sum(1 for i in items if i.get("kind") == "image"),
         "videos": sum(1 for i in items if i.get("kind") == "video"),
@@ -490,3 +489,42 @@ def read_followers(page, profile_url, max_rounds=200):
         print(f"  ! the profile says {stated}; this run saw {len(seen)}.")
         print("    This snapshot is incomplete.")
     return list(seen), stated
+
+
+def read_reel_views(page, profile_url):
+    """Play counts from the profile's reels tab, keyed by post shortcode.
+
+    Only the account looking at its own profile sees these numbers; for anyone
+    else the tab shows no counts and this returns an empty mapping.
+    """
+    username = username_from_profile_url(profile_url)
+    if not username:
+        return {}
+
+    try:
+        page.goto(f"https://www.instagram.com/{username}/reels/",
+                  wait_until="domcontentloaded")
+        page.wait_for_selector("main", timeout=20_000)
+    except PlaywrightTimeout:
+        return {}
+
+    time.sleep(3.0)
+    found: dict[str, int] = {}
+    stagnant = 0
+    for _ in range(30):
+        before = len(found)
+        try:
+            tiles = page.evaluate(views_reader.COLLECT_REEL_TILES_JS)
+        except Exception:
+            break
+        found.update(views_reader.from_tiles(tiles))
+        if len(found) == before:
+            stagnant += 1
+            if stagnant >= 3:
+                break
+        else:
+            stagnant = 0
+        page.mouse.wheel(0, 2_000)
+        nap(SCROLL_PAUSE)
+
+    return found

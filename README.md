@@ -248,7 +248,7 @@ account you are reading it as. Every row below was measured, not assumed.
 | **Like counts** | yes, but see below | **unreliable on older posts** | yes |
 | **Follower names** | none — nothing to open | a partial sample | **complete** |
 | Follower count | yes | yes | yes |
-| View counts | no — returns null | no — returns null | **no — still null** |
+| **View counts** | no | no | **yes, for reels** |
 
 ### Like counts can be wrong when you are not the account
 
@@ -275,12 +275,18 @@ A snapshot records the count it was aiming for and whether it matched, and
 **two partial snapshots are never compared** — that would invent departures,
 since a name missing from one run is usually a name that run did not see.
 
-### View counts are not available at all
+### View counts come from the reels tab
 
-Instagram leaves `view_count` null in the served page even for the account
-looking at its own posts, and even on a reel with 627,728 likes. It is
-recorded as blank rather than zero, because a null is not a claim that nobody
-watched.
+Instagram leaves `view_count` null in every post's page data — for viewers and
+for the account itself, and even on a reel with 627,728 likes. The number is
+not in the data at all.
+
+It is drawn on the tiles of the profile's **reels tab**, though, and that is
+visible when the account is looking at its own profile. `scan` reads it there
+in a single pass before walking the posts, and records it against each reel.
+
+A post that is not a reel has no count, and neither does any reel seen by
+anyone but the account itself. Those stay blank rather than zero.
 
 ## How long does it take?
 

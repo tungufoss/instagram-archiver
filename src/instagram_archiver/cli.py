@@ -32,6 +32,7 @@ from .scraper import (
     enumerate_profile_posts,
     nap,
     read_followers,
+    read_reel_views,
     scan_post,
 )
 from .session import NotLoggedIn, browser_session, ensure_login
@@ -379,10 +380,15 @@ def main(argv: list[str] | None = None) -> int:
                         page, args.url, args.max_posts, args.include_reels
                     )
                     hint = username_from_profile_url(args.url)
+                    # One pass over the reels tab first: play counts are drawn
+                    # on the tiles there and nowhere else.
+                    views = read_reel_views(page, args.url)
+                    if views:
+                        print(f"  play counts for {len(views)} reel(s)")
                     started = time.time()
                     found = []
                     for i, post_url in enumerate(targets, start=1):
-                        row = PostRecord(**scan_post(page, post_url, hint))
+                        row = PostRecord(**scan_post(page, post_url, hint, views))
                         found.append(row)
                         # "p"/"r" for the kind; the counts say img/vid so the
                         # two do not collide in the same line.
@@ -393,6 +399,7 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"[{i}/{len(targets)}] {row.post_date}  {kind}  "
                               f"{row.images:>2}i {row.videos:>2}v  "
                               f"{row.likes:>4} likes  {row.comments:>3} comments"
+                              + (f"  {row.views:>6} views" if row.views else "")
                               + (f"  {caption}" if caption else ""))
                         if i < len(targets):
                             nap(SCAN_PAUSE)
