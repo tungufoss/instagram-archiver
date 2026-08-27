@@ -17,6 +17,11 @@ PLACEHOLDER_TYPE = "video_skipped"
 
 INDEX_JSON = "index.json"
 INDEX_CSV = "index.csv"
+COMMENTS_JSON = "comments.json"
+COMMENTS_CSV = "comments.csv"
+
+COMMENT_FIELDS = ["post_url", "post_id", "post_date", "username",
+                 "timestamp", "text"]
 
 
 def _read_existing(out_dir: Path) -> list[dict]:
@@ -162,3 +167,54 @@ def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
         )
         writer.writeheader()
         writer.writerows(merged)
+
+
+def _read_comments(out_dir: Path) -> list[dict]:
+    path = out_dir / COMMENTS_JSON
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    return data if isinstance(data, list) else []
+
+
+def write_comments(out_dir: Path, rows: list[dict]) -> int:
+    """Merge comment rows into comments.json / comments.csv.
+
+    Kept apart from the media index: comments are other people's words about
+    the post, not a description of a file on disk. Returns how many were new.
+    """
+    if not rows:
+        return 0
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    existing = _read_comments(out_dir)
+    seen = {
+        (r.get("post_id"), r.get("username"), r.get("timestamp"), r.get("text"))
+        for r in existing
+    }
+
+    added = []
+    for row in rows:
+        key = (row.get("post_id"), row.get("username"), row.get("timestamp"),
+               row.get("text"))
+        if key in seen:
+            continue
+        seen.add(key)
+        added.append(row)
+
+    if not added:
+        return 0
+
+    merged = existing + added
+    (out_dir / COMMENTS_JSON).write_text(
+        json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    with (out_dir / COMMENTS_CSV).open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=COMMENT_FIELDS, restval="",
+                                extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(merged)
+    return len(added)

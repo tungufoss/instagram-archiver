@@ -95,6 +95,11 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
              "media). Pass '-' to write no log",
     )
     parser.add_argument(
+        "--comments", action="store_true", default=default,
+        help="also record each post's comments - username, time and text - in "
+             "comments.csv and comments.json. Off by default",
+    )
+    parser.add_argument(
         "--resume", action="store_true", default=default,
         help="skip posts the index shows are already complete, instead of "
              "visiting each one to find out",
@@ -182,6 +187,7 @@ FLAG_DEFAULTS = {
     "nested": False,
     "force": False,
     "resume": False,
+    "comments": False,
     "log": None,
 }
 
@@ -311,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
                         records = save_post(
                             context, page, post_url, out_dir, hashes,
                             True, None, args.flatten, archived,
+                            args.comments,
                         )
                         summary.records += records
                         summary.posts_visited += 1
@@ -327,13 +334,14 @@ def main(argv: list[str] | None = None) -> int:
                         return 2
                     summary = archive_post(
                         context, page, post_url, out_dir, hashes,
-                        want_videos, args.flatten, archived,
+                        want_videos, args.flatten, archived, args.comments,
                     )
                 else:
                     summary = archive_profile(
                         context, page, args.url, out_dir, hashes,
                         want_videos, args.max_posts, args.flatten,
                         args.include_reels, archived, args.resume,
+                        args.comments,
                     )
             finally:
                 # archive_* writes after each post; this catches anything that

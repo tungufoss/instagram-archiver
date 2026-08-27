@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 COLLECT_JSON_BLOCKS_JS = """
 () => [...document.querySelectorAll('script[type="application/json"]')]
@@ -52,11 +53,21 @@ def _best_video(item: dict) -> dict | None:
 
 
 @dataclass
+class Comment:
+    """One comment, as recorded alongside the archive."""
+
+    username: str
+    timestamp: str          # ISO 8601, or "" when the page did not say
+    text: str
+
+
+@dataclass
 class PostData:
     """What the page says about one post."""
 
     items: list[dict] = field(default_factory=list)
     caption: str = ""
+    comments: list[Comment] = field(default_factory=list)
 
 
 def _caption_of(media: dict) -> str:
@@ -68,6 +79,58 @@ def _caption_of(media: dict) -> str:
     if isinstance(caption, str):
         return caption.strip()
     return ""
+
+
+def _epoch_to_iso(value) -> str:
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return ""
+    if seconds <= 0:
+        return ""
+    return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat()
+
+
+def _comment_from(node: dict) -> Comment | None:
+    """Read one comment, tolerating the shapes Instagram has used."""
+    if not isinstance(node, dict):
+        return None
+
+    text = node.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return None
+
+    owner = node.get("user") or node.get("owner") or {}
+    username = owner.get("username") if isinstance(owner, dict) else None
+    if not isinstance(username, str):
+        username = node.get("username") if isinstance(node.get("username"), str) else ""
+
+    return Comment(
+        username=username or "",
+        timestamp=_epoch_to_iso(node.get("created_at") or node.get("created_at_utc")),
+        text=text.strip(),
+    )
+
+
+def _comments_of(media: dict) -> list[Comment]:
+    """Comments carried by the post object, in the order the page lists them."""
+    raw = media.get("comments")
+    if raw is None:
+        edges = (media.get("edge_media_to_parent_comment")
+                 or media.get("edge_media_to_comment") or {})
+        raw = edges.get("edges") if isinstance(edges, dict) else None
+        if isinstance(raw, list):
+            raw = [e.get("node") for e in raw if isinstance(e, dict)]
+
+    if not isinstance(raw, list):
+        return []
+
+    found = []
+    for node in raw:
+        comment = _comment_from(node)
+        if comment is not None:
+            found.append(comment)
+    return found
 
 
 def parse_post(blocks: list[str], code: str) -> PostData | None:
@@ -103,7 +166,8 @@ def parse_post(blocks: list[str], code: str) -> PostData | None:
                 continue
             video = _best_video(item)
             parsed.append({"kind": "video", **video} if video else {"kind": "image"})
-        return PostData(items=parsed, caption=_caption_of(media))
+        return PostData(items=parsed, caption=_caption_of(media),
+                        comments=_comments_of(media))
 
     return best
 

@@ -170,6 +170,25 @@ you downloaded it, so the archive sorts chronologically in any file browser.
 Instagram strips EXIF from uploads, so the filesystem timestamp is the only
 honest place to record this.
 
+### Comments
+
+`--comments` records each post's comments in `comments.csv` and
+`comments.json` beside the media — username, time and text, one row each:
+
+| Column | Meaning |
+| --- | --- |
+| `post_url` | the post they belong to |
+| `post_id` | Instagram's shortcode |
+| `post_date` | the post's own date |
+| `username` | who wrote it |
+| `timestamp` | when, ISO 8601 |
+| `text` | what they wrote |
+
+**Off by default, deliberately.** Comments are other people's words about
+someone's post, so collecting them should be a choice rather than a side
+effect of archiving your own photographs. They are kept in their own files
+rather than the media index, which describes files on disk.
+
 ### The index
 
 `index.csv` and `index.json` sit at the root of the output directory and are
@@ -257,6 +276,7 @@ Watch progress live with a status line printed after every post:
 | `--headless` | no window; only useful after `login` has succeeded once |
 | `--videos` | also download videos (off by default) |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
+| `--comments` | also record comments (off by default) |
 | `--resume` | skip posts the index shows are complete |
 | `--force` | ignore the index and fetch everything again, overwriting what is there |
 | `--flatten` | no per-post folders; date and post ID go in the filename |

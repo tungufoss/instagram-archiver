@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post captions are recorded in the index, so an archive says what each post
   was about rather than only what it contained.
+- `--comments` records each post's comments - username, time and text - in
+  `comments.csv` and `comments.json`. Off by default: comments are other
+  people's words about someone's post, so collecting them should be a choice.
 
 ### Changed
 

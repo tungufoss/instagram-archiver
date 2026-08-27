@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import placeholder
 from .config import MIN_IMAGE_BYTES, POST_PAUSE
-from .indexing import completed_post_ids, write_index
+from .indexing import completed_post_ids, write_comments, write_index
 from .media import MediaRecord, fetch, resolve_video
 from .paths import account_dir_name
 from .progress import line as progress_line
@@ -68,7 +68,8 @@ class Summary:
 
 
 def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
-              username_hint=None, flatten=False, archived=None):
+              username_hint=None, flatten=False, archived=None,
+              want_comments=False):
     """Download every photo and video in one post. Returns its MediaRecords."""
     post_id = post_id_from(post_url)
     print(f"- {post_url}")
@@ -248,6 +249,21 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
         shown = dest.relative_to(out_dir).as_posix()
         print(f"  + {shown}  {note}")
 
+    if want_comments and meta.comments:
+        added = write_comments(out_dir, [
+            {
+                "post_url": post_url,
+                "post_id": post_id,
+                "post_date": post_date,
+                "username": c.username,
+                "timestamp": c.timestamp,
+                "text": c.text,
+            }
+            for c in meta.comments
+        ])
+        if added:
+            print(f"  ~ {added} comment(s)")
+
     try:
         # The index is the slide's position in the post, so a file keeps the
         # same number no matter what a given run happens to download.
@@ -293,11 +309,11 @@ def prune_empty_dirs(root: Path) -> tuple[int, int]:
 
 
 def archive_post(context, page, post_url, out_dir, hashes, want_videos=True,
-                 flatten=False, archived=None):
+                 flatten=False, archived=None, want_comments=False):
     summary = Summary()
     records = save_post(
         context, page, post_url, out_dir, hashes, want_videos,
-        flatten=flatten, archived=archived,
+        flatten=flatten, archived=archived, want_comments=want_comments,
     )
     summary.records += records
     summary.posts_visited = 1
@@ -309,7 +325,7 @@ def archive_post(context, page, post_url, out_dir, hashes, want_videos=True,
 def archive_profile(
     context, page, profile_url, out_dir, hashes,
     want_videos=True, max_posts=None, flatten=False, include_reels=True,
-    archived=None, resume=False,
+    archived=None, resume=False, want_comments=False,
 ):
     summary = Summary()
     skipped_reels: list[str] = []
@@ -349,7 +365,7 @@ def archive_profile(
         print(f"[{i}/{len(targets)}]", end=" ")
         records = save_post(
             context, page, post_url, out_dir, hashes, want_videos, hint,
-            flatten, archived,
+            flatten, archived, want_comments,
         )
         summary.records += records
         summary.posts_visited += 1

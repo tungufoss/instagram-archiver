@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -49,6 +49,7 @@ class PostMeta:
     username: str = "unknown-account"
     timestamp: float | None = None      # epoch seconds, applied to saved files
     caption: str = ""                   # the post's text, recorded in the index
+    comments: list = field(default_factory=list)
 
 
 class PrivateProfile(RuntimeError):
@@ -126,6 +127,7 @@ def collect_post_media(page, post_url, want_videos=True,
         # Prefer the exact <time> stamp; fall back to midnight on the og date.
         timestamp=iso_to_epoch(iso) or date_to_epoch(og_date),
         caption=details.caption if details else "",
+        comments=details.comments if details else [],
     )
     items: list[dict] = []
     seen_images: set[str] = set()
