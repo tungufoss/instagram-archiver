@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known issues
 
-- `--include-reels` on a profile can enumerate reels belonging to other
-  accounts, picked up from suggested content on the profile page. Reels are
-  skipped by default. See
+- A post co-authored by two accounts is filed under whichever author Instagram
+  names first when archived through `post` mode. `profile` mode files it under
+  the profile being archived. See
   [#9](https://github.com/tungufoss/instagram-archiver/issues/9).
 
 ### Fixed

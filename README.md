@@ -290,14 +290,14 @@ video already attached to a post. Fetching both roughly doubles the work to
 produce bytes the hash check then discards, so profile mode skips `/reel/`
 URLs and says how many it skipped.
 
-> [!WARNING]
-> **Do not use `--include-reels` on a profile yet.** Enumeration picks up
-> suggested reels belonging to *other* accounts, so a run can archive somebody
-> else's content. Verified case: a reel listed for one account turned out to
-> belong to another shown in its "Suggested for you" section. Tracked in
-> [#9](https://github.com/tungufoss/instagram-archiver/issues/9).
+`--include-reels` turns them back on. Passing a reel URL to `post` mode always
+works and is unaffected by this flag.
 
-Passing a reel URL to `post` mode is unaffected and works correctly.
+**Co-authored posts.** Instagram lets two accounts share a post, and it appears
+on both their grids. In `profile` mode it is filed under the profile you are
+archiving. In `post` mode there is no such context, so it is filed under
+whichever author Instagram names first - which may not be the account you had
+in mind. See [#9](https://github.com/tungufoss/instagram-archiver/issues/9).
 
 **Known rough edge:** reel pages are the weakest part of the tool. They render
 no `<time>` element, their author has to be read from `og:description` because
@@ -333,7 +333,6 @@ Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`.
   compressed rendition, not an original master.
 - Stories, highlights and archived posts are not covered.
 - Video quality is whatever Instagram offers, not an original master.
-- `--include-reels` on a profile can pick up other accounts' reels; see above.
 - Instagram changes its markup without warning; selectors may need updating.
 
 ## Your data
