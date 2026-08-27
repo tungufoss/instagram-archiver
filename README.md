@@ -235,51 +235,48 @@ A file's number is its position in the post, not a running count of what a
 particular run downloaded. That way a photo keeps the same name whether or not
 videos were saved alongside it.
 
-## Two viewpoints
+## What is visible, and to whom
 
-What this tool can record depends on whose eyes it is looking through.
+What this tool can record depends on the account you are reading and the
+account you are reading it as.
 
-**As a viewer** — an account you follow, or a public one. This is the case
-everything here has been built and tested against.
+| | Private, you follow it | Public | The account itself |
+| --- | --- | --- | --- |
+| Photographs, videos, captions, timestamps | yes | yes | yes |
+| Like counts, comment counts | yes | yes | yes |
+| Post or reel, photo and video counts | yes | yes | yes |
+| Comments themselves | only what the page loads | same | probably the same |
+| View counts | **no** — returns null | **no** — returns null | expected, unverified |
+| Follower **count** | yes | yes | yes |
+| Follower **names** | **none** — nothing to open | a large sample | expected in full, unverified |
 
-**As the account itself** — logged in as it, in its own browser profile.
-Instagram shows an account things about itself that it shows nobody else.
+Measured, not assumed: on a private account the count is plain text with no
+control to open, so no names at all. On a public account with 603 followers,
+five different strategies each returned between 432 and 459 names.
 
-| | As a viewer | As the account |
-| --- | --- | --- |
-| Photographs, at full resolution | yes | yes |
-| Videos, correctly attributed | yes | yes |
-| Captions, dates, exact timestamps | yes | yes |
-| Like counts, comment counts | yes | yes |
-| Post or reel, photo and video counts | yes | yes |
-| Comments themselves | only those the page loads | probably the same |
-| View counts | **no** — Instagram returns null | expected, unverified |
-| Follower list | **a large sample, not all** | expected, unverified |
-
-The two "expected, unverified" rows are honest guesses, not findings. Nothing
-here has been run while logged in as the account it was reading, so whether
-Instagram then fills in `view_count` or serves the whole follower list is
-untested. To try it, give that account its own browser profile:
+The last column is a guess. Nothing here has been run while logged in **as**
+the account it was reading — the tests above read a public account from a
+different account — so whether Instagram then fills in `view_count` or serves
+the whole follower list is untested. To find out, give that account its own
+browser profile:
 
 ```bash
 instagram-archiver --browser-profile ./that-account login
 instagram-archiver --browser-profile ./that-account followers https://www.instagram.com/thataccount/
 ```
 
-### Why the follower list is a sample
+### Why the follower names are a sample
 
-The dialog is virtualised: it renders a window of rows and discards the rest.
-Five strategies — jumping to the bottom, small overlapping steps, a bridge
-check, loading fully then walking back, and listening to network responses —
-each returned between 432 and 459 of one account's 603.
+The dialog is virtualised: it renders a window of rows and discards the rest,
+so scrolling past a row without reading it loses that name for good.
 
-So a snapshot is recorded with `complete: false` and the count it fell short
-of, and **two partial snapshots are not compared**. Comparing them would
-invent departures: a name missing from one run is usually a name that run did
-not see, not somebody who left. The count trend stays useful; the names are a
+A snapshot therefore records `complete: false` and the count it fell short of,
+and **two partial snapshots are not compared**. Comparing them would invent
+departures: a name missing from one run is usually a name that run did not
+see, not somebody who left. The count trend stays useful, and the names are a
 large sample of the membership.
 
-When a snapshot does match the stated count, the comparison runs normally and
+When a snapshot matches the stated count, the comparison runs normally and
 `joined` / `left` mean what they say.
 
 ## How long does it take?
