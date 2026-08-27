@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A reel is now read from its `/p/` URL. Instagram serves `/reel/<code>/` as a
+  scrolling reels player showing other people's content and omits the post's
+  media from the page, so archiving a reel could save whatever the player had
+  centred. The same code at `/p/<code>/` carries the real media list.
+
+### Known issues
+
+- `--include-reels` on a profile can enumerate reels belonging to other
+  accounts, picked up from suggested content on the profile page. Reels are
+  skipped by default. See
+  [#9](https://github.com/tungufoss/instagram-archiver/issues/9).
+
+### Fixed
+
 - **Videos are attributed correctly.** They were chosen by watching network
   traffic, which cannot tell one post's video from another post's prefetch: a
   page with one video issued 8 requests covering 3 distinct videos, and the

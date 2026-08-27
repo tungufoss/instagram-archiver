@@ -22,7 +22,7 @@ from .config import (
 from .embedded import post_media, video_urls_by_position
 from .extract import current_slide, read_username
 from .metadata import date_to_epoch, iso_to_epoch, parse_og_description
-from .urls import image_key, normalise_post_url, post_id_from
+from .urls import image_key, normalise_post_url, page_url_for, post_id_from
 
 # Instagram words this as "profile" or "account" depending on the surface.
 PRIVATE_RE = re.compile(r"this (account|profile) is private", re.I)
@@ -99,7 +99,8 @@ def collect_post_media(page, post_url, want_videos=True,
 
     Returns (PostMeta, items).
     """
-    page.goto(post_url, wait_until="domcontentloaded")
+    # Always the /p/ form: a reel page omits the embedded media list.
+    page.goto(page_url_for(post_url), wait_until="domcontentloaded")
     try:
         page.wait_for_selector(POST_MEDIA_SELECTOR, timeout=20_000)
     except PlaywrightTimeout:

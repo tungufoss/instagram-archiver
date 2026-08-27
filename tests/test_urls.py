@@ -94,3 +94,22 @@ def test_video_key_matches_across_ranges():
 )
 def test_username_from_profile_url(url, expected):
     assert username_from_profile_url(url) == expected
+
+
+@pytest.mark.parametrize(
+    "given,expected",
+    [
+        ("https://www.instagram.com/reel/ABC123/", "https://www.instagram.com/p/ABC123/"),
+        ("https://www.instagram.com/p/ABC123/", "https://www.instagram.com/p/ABC123/"),
+        ("/reel/ABC-1_2/", "https://www.instagram.com/p/ABC-1_2/"),
+    ],
+)
+def test_page_url_for_prefers_the_post_form(given, expected):
+    """A reel page omits the embedded media list; /p/ carries it."""
+    from instagram_archiver.urls import page_url_for
+    assert page_url_for(given) == expected
+
+
+def test_page_url_for_leaves_other_urls_alone():
+    from instagram_archiver.urls import page_url_for
+    assert page_url_for("https://example.com/x") == "https://example.com/x"

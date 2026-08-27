@@ -67,8 +67,9 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
     )
     parser.add_argument(
         "--include-reels", action="store_true", default=default,
-        help="also archive reels listed on a profile. Off by default: they "
-             "carry no photographs",
+        help="also archive reels listed on a profile. Off by default, and "
+             "currently unsafe: enumeration picks up suggested reels from "
+             "other accounts (see issue #9)",
     )
     parser.add_argument(
         "--log", type=Path, default=default,

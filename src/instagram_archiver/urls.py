@@ -80,3 +80,16 @@ def clean_video_url(url: str) -> str:
 
 def video_key(url: str) -> str:
     return Path(urlsplit(url).path).name
+
+
+def page_url_for(post_url: str) -> str:
+    """The URL to actually open for a post.
+
+    A reel served at /reel/<code>/ does not carry the post's media in its
+    embedded JSON, while the very same code at /p/<code>/ does. Always read
+    the /p/ form; the original URL is still what gets recorded.
+    """
+    match = POST_RE.search(urlparse(post_url or "").path)
+    if not match:
+        return post_url
+    return f"https://www.instagram.com/p/{match.group(2)}/"
