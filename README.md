@@ -4,17 +4,13 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> [!WARNING]
-> **Video downloading is unreliable and can save the wrong video.** Instagram
-> prefetches unrelated videos on every page, and this tool cannot reliably tell
-> which file belongs to which slide. Verified case: within one carousel, two
-> videos were correct and one was a stranger's. **Photographs are not
-> affected.** Use `--skip-videos` for an archive you can trust.
-> Tracking: [#8](https://github.com/tungufoss/instagram-archiver/issues/8)
+Save local copies of the Instagram **photographs** that **your own logged-in
+account can already see** at full resolution, with metadata, in a sensible folder structure — a class
+group, a family account, your own posts.
 
-Save local copies of Instagram photos and videos that **your own logged-in
-account can already see** — a class group, a family account, your own posts —
-at full resolution, with metadata, in a sensible folder structure.
+**Photographs only, for now.** Videos are opt-in and experimental: see
+[Videos and reels](#videos-and-reels-not-yet). A carousel slide holding a video
+leaves a labelled placeholder, so nothing goes missing silently.
 
 It drives a real Chromium window through Playwright using a persistent local
 browser profile. You log in by hand once; the session is reused after that.
@@ -229,7 +225,7 @@ Watch progress live with a status line printed after every post:
 | `--out DIR` | where to save media (default `./ig_archiver`) |
 | `--browser-profile DIR` | override the session directory |
 | `--headless` | no window; only useful after `login` has succeeded once |
-| `--skip-videos` | photographs only; videos leave a placeholder image |
+| `--videos` | EXPERIMENTAL: also download videos, see above |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
 | `--force` | ignore the index and fetch everything again, overwriting what is there |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
@@ -254,9 +250,10 @@ Photos are taken at the widest candidate in each `<img>`'s `srcset`, which is
 the highest resolution Instagram served your browser — typically 2500–3900 px
 wide, far above the 640 px `og:image` preview.
 
-### Videos — known defect
+### Videos and reels (not yet)
 
-**This does not work reliably. See the warning at the top.**
+`--videos` exists and is **experimental**: it can save a video belonging to a
+different post. Leave it off unless you are helping to fix it.
 
 A `<video>` element's `src` is a `blob:` URL, so the DOM holds no downloadable
 address. Instead the tool watches the page's own network requests and keeps any
@@ -328,8 +325,7 @@ Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`.
 - Video quality is whatever Instagram serves your browser — typically a
   compressed rendition, not an original master.
 - Stories, highlights and archived posts are not covered.
-- Videos can be wrong; see the warning at the top. Photographs are sound.
-- Reels are the least reliable surface of all.
+- Videos and reels are not part of this release; see above.
 - Instagram changes its markup without warning; selectors may need updating.
 
 ## Your data

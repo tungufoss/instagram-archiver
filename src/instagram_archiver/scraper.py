@@ -20,7 +20,7 @@ from .config import (
     SLIDE_PAUSE,
     VIDEO_SETTLE,
 )
-from .extract import count_post_videos, extract_images, nudge_videos, read_username
+from .extract import current_slide, nudge_videos, read_username
 from .metadata import date_to_epoch, iso_to_epoch, parse_og_description
 from .urls import (
     clean_video_url,
@@ -177,26 +177,25 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
     seen_videos: set[str] = set()
 
     def harvest() -> None:
-        for candidate in extract_images(page):
-            key = image_key(candidate["url"])
-            if key in seen_images:
-                continue
-            seen_images.add(key)
-            items.append(
-                {"kind": "image", "url": candidate["url"], "width": candidate["width"]}
-            )
-
-        if not want_videos:
-            sniffer.clear()
-            # Note that a video was here, so the gap is visible in the output
-            # instead of the numbering silently skipping a slide.
-            if count_post_videos(page) > 0:
-                items.append({"kind": "video_skipped"})
+        """Record whatever is on the slide currently being shown."""
+        slide = current_slide(page)
+        if slide is None:
             return
 
-        # Counts only the post's own videos: a suggested reel below the post
-        # must not make us fetch and file its file as part of this post.
-        if count_post_videos(page) == 0:
+        if slide["kind"] == "image":
+            key = image_key(slide["url"])
+            if key in seen_images:          # the slide did not actually change
+                return
+            seen_images.add(key)
+            items.append(
+                {"kind": "image", "url": slide["url"], "width": slide["width"]}
+            )
+            return
+
+        # A video occupies this slide.
+        if not want_videos:
+            # Note the gap so the numbering keeps the post's real shape.
+            items.append({"kind": "video_skipped"})
             sniffer.clear()
             return
 
@@ -209,10 +208,11 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
             if fallback and video_key(fallback) not in seen_videos:
                 seen_videos.add(video_key(fallback))
                 urls = [fallback]
+
         if urls:
-            # A slide can yield a video track plus a separate audio track;
-            # media.resolve_video() sorts that out once the bytes are on disk.
             items.append({"kind": "video", "urls": urls, "width": 0})
+        else:
+            items.append({"kind": "video_skipped"})
 
     harvest()
     for _ in range(max_slides):
@@ -231,12 +231,13 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
 
 # ------------------------------------------------------- profile reading ---
 
-def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=False):
+def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=False,
+                            record_skipped=None):
     """Scroll a profile and collect the post URLs this session can see.
 
-    Reels are skipped by default. A reel is normally the same video already
-    attached to a post, so fetching both doubles the work to produce bytes the
-    hash check throws away.
+    Reels are skipped by default: they carry no photographs, and their video
+    cannot currently be attributed reliably (see the README). Pass
+    `record_skipped` a list to find out which ones were left out.
     """
     page.goto(profile_url, wait_until="domcontentloaded")
     try:
@@ -287,9 +288,14 @@ def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=Fal
 
     print(f"  found {len(urls)} posts on the profile." + " " * 20)
     if skipped_reels:
-        print(f"  skipped {len(skipped_reels)} reels (use --include-reels to keep "
-              f"them; their video is usually already in a post)")
+        print(f"  skipped {len(skipped_reels)} reels; use --include-reels to "
+              f"archive them too")
+        print("    (a reel carries no photographs, so a photos-only archive")
+        print("     loses nothing by skipping it)")
     if not urls:
         print("  ! No posts were visible to this session. Open the profile in the")
         print("    Chromium window yourself to see what Instagram is showing you.")
+    if skipped_reels and record_skipped is not None:
+        record_skipped.extend(skipped_reels)
+
     return urls[:max_posts] if max_posts else urls

@@ -9,16 +9,16 @@ def test_defaults():
     args = parse_args(["profile", "https://www.instagram.com/x/"])
     assert args.command == "profile"
     assert args.max_posts is None
-    assert args.skip_videos is False
+    assert args.videos is False          # photographs only, by default
     assert args.headless is False
 
 
 def test_global_flags_precede_subcommand():
     args = parse_args(
-        ["--skip-videos", "--headless", "--out", "shots", "post",
+        ["--videos", "--headless", "--out", "shots", "post",
          "https://www.instagram.com/p/ABC/"]
     )
-    assert args.skip_videos is True
+    assert args.videos is True
     assert args.headless is True
     assert str(args.out) == "shots"
     assert args.command == "post"
@@ -48,18 +48,24 @@ URL = "https://www.instagram.com/someaccount/"
 
 
 def test_flag_after_subcommand_is_accepted():
-    """`profile URL --skip-videos` used to fail with a usage error."""
-    assert parse_args(["profile", URL, "--skip-videos"]).skip_videos is True
+    """`profile URL --videos` used to fail with a usage error."""
+    assert parse_args(["profile", URL, "--videos"]).videos is True
 
 
 def test_flag_before_subcommand_survives_the_subcommand_pass():
-    assert parse_args(["--skip-videos", "profile", URL]).skip_videos is True
+    assert parse_args(["--videos", "profile", URL]).videos is True
 
 
 def test_flags_may_be_mixed_either_side():
-    args = parse_args(["--skip-videos", "profile", URL, "--flatten"])
-    assert args.skip_videos is True
+    args = parse_args(["--videos", "profile", URL, "--flatten"])
+    assert args.videos is True
     assert args.flatten is True
+
+
+def test_old_skip_videos_flag_still_parses():
+    """It is the default now, but typing it must not be an error."""
+    assert parse_args(["--skip-videos", "profile", URL]).videos is False
+    assert parse_args(["profile", URL, "--skip-videos"]).videos is False
 
 
 def test_value_flags_work_after_the_subcommand():
@@ -69,7 +75,7 @@ def test_value_flags_work_after_the_subcommand():
 
 def test_unsupplied_flags_are_false_not_none():
     args = parse_args(["profile", URL])
-    assert args.skip_videos is False
+    assert args.videos is False
     assert args.include_reels is False
     assert args.flatten is False
     assert args.headless is False

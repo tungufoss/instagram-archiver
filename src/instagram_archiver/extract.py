@@ -8,40 +8,6 @@ from __future__ import annotations
 
 from .config import MIN_IMAGE_PIXELS
 
-# Collect candidate photographs from the post currently rendered.
-#
-# Instagram does not always wrap a standalone post in <article>, so we fall
-# back to <main>. That means the "more posts" grid is in scope, and the
-# discriminator that actually works is this: a suggested post's thumbnail is
-# always inside an <a href="/p/..."> link, while the post's own media never
-# is. Size alone is not enough - suggestion thumbnails can exceed 300px.
-EXTRACT_IMAGES_JS = """
-(minPixels) => {
-  const art = document.querySelector('article') || document.querySelector('main');
-  if (!art) return [];
-  const out = [];
-  for (const img of art.querySelectorAll('img')) {
-    if (img.closest('header')) continue;                     // profile pic
-    if (img.closest("a[href*='/p/'], a[href*='/reel/']")) continue;  // suggested
-    const alt = img.getAttribute('alt') || '';
-    if (/profile picture/i.test(alt)) continue;
-    const holder = img.closest('li') || img.parentElement;
-    if (holder && holder.querySelector('video')) continue;   // video poster
-    let best = img.currentSrc || img.src || '';
-    let bestW = 0;
-    const srcset = img.getAttribute('srcset') || '';
-    for (const part of srcset.split(',')) {
-      const m = part.trim().match(/^(\\S+)\\s+(\\d+)w$/);
-      if (m && parseInt(m[2], 10) > bestW) { bestW = parseInt(m[2], 10); best = m[1]; }
-    }
-    if (!/^https?:/.test(best)) continue;
-    if (img.clientWidth < minPixels || img.clientHeight < minPixels) continue;
-    out.push({ url: best, width: bestW, alt: alt });
-  }
-  return out;
-}
-"""
-
 # A <video> exposes a blob: src, which cannot be downloaded. Starting playback
 # muted makes the page fetch the real CDN file, which the request sniffer sees.
 #
@@ -67,14 +33,65 @@ NUDGE_VIDEOS_JS = """
 }
 """
 
-COUNT_POST_VIDEOS_JS = """
-() => {
+# Instagram mounts three carousel slides at once: the previous one off to the
+# left, the current one, and the next one off to the right. Reading them all
+# attributes the *next* slide's media to the current position - which produced
+# 16 files for a 12-slide post, with placeholders on slides that held photos.
+#
+# The current slide is the one lying wholly inside the viewport; its neighbours
+# are translated so that part of them hangs off an edge. Visible fraction picks
+# it out without depending on Instagram's class names or layout maths.
+CURRENT_SLIDE_JS = r"""
+(minPixels) => {
   const root = document.querySelector('article') || document.querySelector('main');
-  if (!root) return 0;
-  return [...root.querySelectorAll('video')]
-    .filter(v => !v.closest("a[href*='/p/'], a[href*='/reel/']")).length;
+  if (!root) return null;
+
+  const vw = window.innerWidth;
+  const suggested = el => el.closest("a[href*='/p/'], a[href*='/reel/']");
+
+  const candidates = [];
+  for (const el of root.querySelectorAll('img, video')) {
+    if (suggested(el)) continue;
+    if (el.tagName === 'IMG') {
+      if (el.closest('header')) continue;
+      if (/profile picture/i.test(el.getAttribute('alt') || '')) continue;
+    }
+    const r = el.getBoundingClientRect();
+    if (r.width < minPixels || r.height < minPixels) continue;
+
+    const visible = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+    if (visible <= 0) continue;
+    candidates.push({ el, fraction: visible / r.width });
+  }
+  if (!candidates.length) return null;
+
+  // Strictly the largest visible fraction; DOM order breaks ties.
+  let best = candidates[0];
+  for (const c of candidates) {
+    if (c.fraction > best.fraction) best = c;
+  }
+  const el = best.el;
+
+  if (el.tagName === 'VIDEO') return { kind: 'video' };
+
+  let url = el.currentSrc || el.src || '';
+  let width = 0;
+  for (const part of (el.getAttribute('srcset') || '').split(',')) {
+    const m = part.trim().match(/^(\S+)\s+(\d+)w$/);
+    if (m && parseInt(m[2], 10) > width) { width = parseInt(m[2], 10); url = m[1]; }
+  }
+  if (!/^https?:/.test(url)) return null;
+  return { kind: 'image', url: url, width: width };
 }
 """
+
+
+def current_slide(page):
+    """What is on the slide being shown right now, or None."""
+    try:
+        return page.evaluate(CURRENT_SLIDE_JS, MIN_IMAGE_PIXELS)
+    except Exception:
+        return None
 
 
 # The author's handle. Taken from the first single-segment profile link in
@@ -106,11 +123,6 @@ def read_username(page) -> str | None:
         return None
 
 
-def extract_images(page):
-    """Return the photo candidates visible in the current post."""
-    return page.evaluate(EXTRACT_IMAGES_JS, MIN_IMAGE_PIXELS)
-
-
 def nudge_videos(page) -> int:
     """Start the post's own videos muted; returns how many were nudged."""
     try:
@@ -118,10 +130,3 @@ def nudge_videos(page) -> int:
     except Exception:
         return 0
 
-
-def count_post_videos(page) -> int:
-    """How many videos belong to this post, ignoring suggested content."""
-    try:
-        return page.evaluate(COUNT_POST_VIDEOS_JS) or 0
-    except Exception:
-        return 0

@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, logfile
 from .archive import Summary, archive_post, archive_profile
 from .indexing import load_known_hashes, write_index
 from .paths import default_browser_profile_dir, default_output_dir
@@ -55,14 +55,25 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
         help="run without a window (only after `login` has succeeded once)",
     )
     parser.add_argument(
+        "--videos", action="store_true", default=default,
+        help="EXPERIMENTAL: also download videos. They cannot yet be reliably "
+             "attributed to the right post, so this can save the wrong video",
+    )
+    # Photographs-only is the default now, so this is a no-op. Kept because it
+    # is what the flag used to be called and typing it should not be an error.
+    parser.add_argument(
         "--skip-videos", action="store_true", default=default,
-        help="save photographs only. Recommended: video downloading is "
-             "unreliable, see the README",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--include-reels", action="store_true", default=default,
         help="also archive reels listed on a profile. Off by default: a reel "
              "is usually the same video already attached to a post",
+    )
+    parser.add_argument(
+        "--log", type=Path, default=default,
+        help="where to write the run log (default: archive.log beside the "
+             "media). Pass '-' to write no log",
     )
     parser.add_argument(
         "--force", action="store_true", default=default,
@@ -116,9 +127,11 @@ FLAG_DEFAULTS = {
     "browser_profile": None,
     "headless": False,
     "skip_videos": False,
+    "videos": False,
     "include_reels": False,
     "flatten": False,
     "force": False,
+    "log": None,
 }
 
 
@@ -170,21 +183,26 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = (args.out or default_output_dir()).resolve()
     profile_dir = (args.browser_profile or default_browser_profile_dir()).resolve()
     headless = args.headless and args.command != "login"
-    want_videos = not args.skip_videos
+    # Photographs are the product. Videos are opt-in until they can be
+    # attributed reliably; a video slide leaves a placeholder either way.
+    want_videos = args.videos
 
     if want_videos and args.command != "login":
         print("=" * 70)
-        print(" WARNING: video downloading is unreliable and can save the WRONG")
-        print(" video. Instagram prefetches unrelated videos on every page, and")
-        print(" this tool cannot always tell which file belongs to which slide.")
-        print(" Photographs are not affected.")
-        print("")
-        print(" Use --skip-videos for an archive you can trust.")
+        print(" --videos is EXPERIMENTAL and can save the WRONG video.")
+        print(" Instagram prefetches unrelated videos on every page, and this")
+        print(" tool cannot yet tell which file belongs to which slide.")
+        print(" Photographs are unaffected either way.")
         print(" See https://github.com/tungufoss/instagram-archiver/issues/8")
         print("=" * 70)
         print("")
 
     # --force starts with an empty memory, so nothing is treated as already had.
+    if str(args.log) != "-":
+        log_path = args.log or (out_dir / logfile.DEFAULT_NAME)
+        logfile.start(log_path)
+        print(f"logging to {log_path}")
+
     hashes = set() if args.force else load_known_hashes(out_dir)
     if args.force:
         print("--force: ignoring the index, everything will be fetched again.")

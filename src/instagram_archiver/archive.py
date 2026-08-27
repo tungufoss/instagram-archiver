@@ -7,6 +7,7 @@ import os
 import shutil
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from . import placeholder
 from .config import MIN_IMAGE_BYTES, POST_PAUSE
@@ -18,6 +19,23 @@ from .scraper import collect_post_media, enumerate_profile_posts, nap
 from .urls import image_extension, post_id_from, username_from_profile_url
 
 WORK_DIR_NAME = ".work"
+REELS_DIR_NAME = "reels"
+
+
+def already_archived(dest: Path, hashes: set[str]) -> bool:
+    """True when `dest` already holds bytes this archive has recorded.
+
+    The destination is not a scratch area. A file sitting in the right place
+    with content we know about is the finished article: it must not be fetched
+    over and must not be deleted. Getting this wrong once emptied a verified
+    folder of nine photographs, leaving only placeholders behind.
+    """
+    try:
+        if not dest.is_file():
+            return False
+        return hashlib.sha256(dest.read_bytes()).hexdigest() in hashes
+    except OSError:
+        return False
 
 
 @dataclass
@@ -57,12 +75,19 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     post_date, username = meta.date, meta.username
 
     # One folder per account, so archiving several accounts stays tidy.
-    # --flatten drops the per-post folder and prefixes the filename instead.
+    # Reels go in their own subfolder: they carry no photographs, and their
+    # video cannot currently be attributed reliably, so keeping them apart
+    # keeps the trustworthy material trustworthy.
     account_dir = account_dir_name(username)
+    root = out_dir / account_dir
+    if "/reel/" in post_url:
+        root = root / REELS_DIR_NAME
+
+    # --flatten drops the per-post folder and prefixes the filename instead.
     stem = f"{post_date}_{post_id}"
-    folder = out_dir / account_dir if flatten else out_dir / account_dir / stem
+    folder = root if flatten else root / stem
     prefix = f"{stem}_" if flatten else ""
-    work_dir = out_dir / account_dir / WORK_DIR_NAME
+    work_dir = root / WORK_DIR_NAME
     records: list[MediaRecord] = []
 
     def file_placeholder(position):
@@ -96,6 +121,14 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
         filename = f"{prefix}{position:02d}{extension}"
         dest = folder / filename
 
+        # A file already sitting in the right place is the finished article.
+        # Never fetch over it and never delete it: the destination is not a
+        # scratch area, and treating it as one destroyed real archives.
+        existed = dest.exists()
+        if already_archived(dest, hashes):
+            print(f"  = already have {filename}")
+            return
+
         if local_path is None:                          # image: fetch it now
             digest = fetch(context, source_url, dest, MIN_IMAGE_BYTES)
             if digest is None:
@@ -105,9 +138,12 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
             shutil.move(str(local_path), str(dest))
             digest = hashlib.sha256(dest.read_bytes()).hexdigest()
 
-        if digest in hashes:                            # already in the library
-            dest.unlink(missing_ok=True)
-            print(f"  = already have {filename}")
+        if digest in hashes:
+            # These bytes are already stored under some other post. Drop the
+            # copy we just made, but only if we created the file ourselves.
+            if not existed:
+                dest.unlink(missing_ok=True)
+            print(f"  = duplicate of a file already archived ({filename})")
             return
 
         # Stamp the file with when the post was made, not when we fetched it,
@@ -176,7 +212,24 @@ def archive_profile(
     want_videos=True, max_posts=None, flatten=False, include_reels=False,
 ):
     summary = Summary()
-    targets = enumerate_profile_posts(page, profile_url, max_posts, include_reels)
+    skipped_reels: list[str] = []
+    targets = enumerate_profile_posts(
+        page, profile_url, max_posts, include_reels, skipped_reels
+    )
+    if skipped_reels:
+        # Written down rather than merely mentioned, so nothing leaves the
+        # archive without a trace of what it was.
+        note = out_dir / "skipped-reels.txt"
+        note.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            "Reels not archived by this run.",
+            "Re-run with --include-reels to fetch them.",
+            "",
+            *skipped_reels,
+            "",
+        ]
+        note.write_text("\n".join(lines), encoding="utf-8")
+        print(f"  listed them in {note.name}")
     started = time.time()
     # The profile URL names the account, which beats guessing from each page.
     hint = username_from_profile_url(profile_url)
