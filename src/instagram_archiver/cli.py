@@ -6,11 +6,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, logfile
-from .archive import Summary, archive_post, archive_profile
+from . import __version__, logfile, relayout
+from .archive import Summary, archive_post, archive_profile, prune_empty_dirs
 from .indexing import load_archived_files, load_known_hashes, write_index
 from .paths import default_browser_profile_dir, default_output_dir
-from .scraper import PrivateProfile, VideoSniffer
+from .scraper import PrivateProfile
 from .session import NotLoggedIn, browser_session, ensure_login
 from .urls import normalise_post_url
 
@@ -56,8 +56,8 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
     )
     parser.add_argument(
         "--videos", action="store_true", default=default,
-        help="EXPERIMENTAL: also download videos. They cannot yet be reliably "
-             "attributed to the right post, so this can save the wrong video",
+        help="also download videos. Off by default so a photo archive stays "
+             "a photo archive; a skipped video leaves a placeholder",
     )
     # Photographs-only is the default now, so this is a no-op. Kept because it
     # is what the flag used to be called and typing it should not be an error.
@@ -67,8 +67,8 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
     )
     parser.add_argument(
         "--include-reels", action="store_true", default=default,
-        help="also archive reels listed on a profile. Off by default: a reel "
-             "is usually the same video already attached to a post",
+        help="also archive reels listed on a profile. Off by default: they "
+             "carry no photographs",
     )
     parser.add_argument(
         "--log", type=Path, default=default,
@@ -81,9 +81,15 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
              "already on disk. Use after changing what gets saved",
     )
     parser.add_argument(
+        "--nested", action="store_true", default=default,
+        help="give each post its own folder. The default is flat: every file "
+             "sits in the account folder, named <date>_<postid>_NN",
+    )
+    # Flat is the default now, so this is a no-op. Kept so that typing what the
+    # flag used to be called is not an error.
+    parser.add_argument(
         "--flatten", action="store_true", default=default,
-        help="put an account's files straight in its folder, without a folder "
-             "per post; filenames are prefixed with date and post ID",
+        help=argparse.SUPPRESS,
     )
 
 
@@ -111,6 +117,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="stop after N posts (useful for a first test run)",
     )
 
+    rearrange = sub.add_parser(
+        "relayout",
+        help="rearrange an archive already on disk; no browser, no network",
+    )
+    _common_options(rearrange, default=argparse.SUPPRESS)
+    rearrange.add_argument(
+        "--dry-run", action="store_true",
+        help="list what would move, without moving anything",
+    )
+    rearrange.set_defaults(url=None, max_posts=None)
+
     post = sub.add_parser("post", help="archive one specific post URL")
     _common_options(post, default=argparse.SUPPRESS)
     post.add_argument("url", help="post or reel URL")
@@ -130,6 +147,7 @@ FLAG_DEFAULTS = {
     "videos": False,
     "include_reels": False,
     "flatten": False,
+    "nested": False,
     "force": False,
     "log": None,
 }
@@ -141,6 +159,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     for name, fallback in FLAG_DEFAULTS.items():
         if getattr(args, name, None) is None:
             setattr(args, name, fallback)
+    # A flat account folder is the layout; --nested asks for the old one.
+    # `flatten` stays the internal name because that is what it controls.
+    args.flatten = not args.nested
     return args
 
 
@@ -191,21 +212,33 @@ def main(argv: list[str] | None = None) -> int:
     # attributed reliably; a video slide leaves a placeholder either way.
     want_videos = args.videos
 
-    if want_videos and args.command != "login":
-        print("=" * 70)
-        print(" --videos is EXPERIMENTAL and can save the WRONG video.")
-        print(" Instagram prefetches unrelated videos on every page, and this")
-        print(" tool cannot yet tell which file belongs to which slide.")
-        print(" Photographs are unaffected either way.")
-        print(" See https://github.com/tungufoss/instagram-archiver/issues/8")
-        print("=" * 70)
-        print("")
 
     # --force starts with an empty memory, so nothing is treated as already had.
     if str(args.log) != "-":
         log_path = args.log or (out_dir / logfile.DEFAULT_NAME)
         logfile.start(log_path)
         print(f"logging to {log_path}")
+
+    if args.command == "relayout":
+        wanted = "flat" if args.flatten else "one folder per post"
+        print(f"Rearranging {out_dir} to: {wanted}")
+        moved, skipped = relayout.apply(out_dir, args.flatten,
+                                        dry_run=getattr(args, "dry_run", False))
+        emptied, stuck = prune_empty_dirs(out_dir)
+        print()
+        print("=" * 50)
+        print(f"Files moved   : {moved}")
+        if skipped:
+            print(f"Left alone    : {skipped} (something was already in the way)")
+        if emptied:
+            print(f"Folders tidied: {emptied}")
+        if stuck:
+            print(f"Left behind   : {stuck} empty folder(s); permission denied.")
+            print("                A sync client such as OneDrive holds folders")
+            print("                it is watching. They can be deleted by hand.")
+        print(f"Archive       : {out_dir}")
+        print("=" * 50)
+        return 0
 
     hashes = set() if args.force else load_known_hashes(out_dir)
     # Where the files we already hold are sitting, so a layout change moves
@@ -219,7 +252,6 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         with browser_session(profile_dir, headless=headless) as (context, page):
-            sniffer = VideoSniffer(page)
             ensure_login(context, page)
 
             if args.command == "login":
@@ -233,12 +265,12 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"Not an Instagram post/reel URL: {args.url}", file=sys.stderr)
                         return 2
                     summary = archive_post(
-                        context, page, sniffer, post_url, out_dir, hashes,
+                        context, page, post_url, out_dir, hashes,
                         want_videos, args.flatten, archived,
                     )
                 else:
                     summary = archive_profile(
-                        context, page, sniffer, args.url, out_dir, hashes,
+                        context, page, args.url, out_dir, hashes,
                         want_videos, args.max_posts, args.flatten,
                         args.include_reels, archived,
                     )

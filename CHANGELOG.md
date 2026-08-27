@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Videos are attributed correctly.** They were chosen by watching network
+  traffic, which cannot tell one post's video from another post's prefetch: a
+  page with one video issued 8 requests covering 3 distinct videos, and the
+  guess put a stranger's video inside a family carousel. Instagram
+  server-renders the post into the page as JSON with a `video_versions` list
+  per carousel slide, so the tool now reads which video belongs to which slide
+  instead of inferring it. Verified on a 12-slide post: the three videos come
+  back at slides 4, 6 and 8 with durations matching the page exactly
+  (3.30s, 4.03s, 4.63s). Closes #8.
+- Video slides no longer wait for playback or download several renditions to
+  discard most of them, so a video-heavy post takes about 37 seconds where it
+  previously took over three minutes.
+- Folders that could not be removed after a layout change failed silently,
+  leaving empty directories with nothing to explain them. On Windows this is
+  usually OneDrive holding the folder; it is now reported.
+
+### Added
+
+- `relayout`, to rearrange an archive already on disk. No browser, no network:
+  354 files took 3.7 seconds.
+- A flat account folder is now the default layout; `--nested` gives each post
+  its own folder.
+
+### Changed
+
+- `--videos` is no longer marked experimental.
+
 ### Added
 
 - Changing the output layout now moves files already in the archive instead of

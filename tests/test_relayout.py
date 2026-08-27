@@ -53,7 +53,7 @@ def test_prune_removes_folders_emptied_by_a_move(tmp_path):
     nested.mkdir(parents=True)
     (tmp_path / "someaccount" / "2026-06-08_ABC_01.jpg").write_bytes(b"moved here")
 
-    assert prune_empty_dirs(tmp_path) == 1
+    assert prune_empty_dirs(tmp_path) == (1, 0)
     assert not nested.exists()
     assert (tmp_path / "someaccount").exists(), "a folder with files stays"
 
@@ -62,10 +62,10 @@ def test_prune_leaves_a_populated_tree_alone(tmp_path):
     keep = tmp_path / "someaccount" / "2026-06-08_ABC"
     keep.mkdir(parents=True)
     (keep / "01.jpg").write_bytes(b"photo")
-    assert prune_empty_dirs(tmp_path) == 0
+    assert prune_empty_dirs(tmp_path) == (0, 0)
     assert (keep / "01.jpg").exists()
 
 
 def test_prune_on_a_missing_directory_is_harmless():
     from pathlib import Path
-    assert prune_empty_dirs(Path("no-such-directory-here")) == 0
+    assert prune_empty_dirs(Path("no-such-directory-here")) == (0, 0)

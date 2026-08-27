@@ -18,17 +18,11 @@ from .config import (
     SCROLL_PAUSE,
     SCROLL_STAGNANT_LIMIT,
     SLIDE_PAUSE,
-    VIDEO_SETTLE,
 )
-from .extract import current_slide, nudge_videos, read_username
+from .embedded import post_media, video_urls_by_position
+from .extract import current_slide, read_username
 from .metadata import date_to_epoch, iso_to_epoch, parse_og_description
-from .urls import (
-    clean_video_url,
-    image_key,
-    is_video_request,
-    normalise_post_url,
-    video_key,
-)
+from .urls import image_key, normalise_post_url, post_id_from
 
 # Instagram words this as "profile" or "account" depending on the surface.
 PRIVATE_RE = re.compile(r"this (account|profile) is private", re.I)
@@ -62,39 +56,6 @@ class PrivateProfile(RuntimeError):
 
 def nap(bounds: tuple[float, float]) -> None:
     time.sleep(random.uniform(*bounds))
-
-
-# ------------------------------------------------------- video sniffing ---
-
-class VideoSniffer:
-    """Records .mp4 URLs the page requests, so blob: sources can be resolved."""
-
-    def __init__(self, page):
-        self._urls: list[str] = []
-        page.on("request", self._on_request)
-
-    def _on_request(self, request) -> None:
-        try:
-            if is_video_request(request.url):
-                self._urls.append(request.url)
-        except Exception:                      # never break page handling
-            pass
-
-    def clear(self) -> None:
-        self._urls.clear()
-
-    def drain(self, seen: set[str]) -> list[str]:
-        """Take URLs seen since the last drain, deduplicated against `seen`."""
-        found = []
-        for raw in self._urls:
-            url = clean_video_url(raw)
-            key = video_key(url)
-            if key in seen:
-                continue
-            seen.add(key)
-            found.append(url)
-        self._urls.clear()
-        return found
 
 
 # ---------------------------------------------------------- post reading ---
@@ -132,26 +93,12 @@ def next_button(page):
     return None
 
 
-def og_video_url(page) -> str | None:
-    """Fallback for a single-video post whose media request we missed."""
-    try:
-        meta = page.locator('meta[property="og:video"]').first
-        if meta.count():
-            url = meta.get_attribute("content", timeout=2_000)
-            if url and is_video_request(url):
-                return clean_video_url(url)
-    except Exception:
-        pass
-    return None
-
-
-def collect_post_media(page, sniffer, post_url, want_videos=True,
+def collect_post_media(page, post_url, want_videos=True,
                        max_slides=MAX_SLIDES, username_hint=None):
     """Open a post, walk every carousel slide.
 
     Returns (PostMeta, items).
     """
-    sniffer.clear()
     page.goto(post_url, wait_until="domcontentloaded")
     try:
         page.wait_for_selector(POST_MEDIA_SELECTOR, timeout=20_000)
@@ -164,6 +111,10 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
     og_username, og_date = parse_og_description(read_og_description(page))
     iso = read_post_timestamp(page)
 
+    # The page carries the post's own media list; when it is there we know
+    # exactly which video belongs to which slide instead of inferring it.
+    known_videos = video_urls_by_position(post_media(page, post_id_from(post_url)))
+
     meta = PostMeta(
         date=(iso[:10] if iso else None) or og_date or "unknown-date",
         username=(
@@ -174,7 +125,6 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
     )
     items: list[dict] = []
     seen_images: set[str] = set()
-    seen_videos: set[str] = set()
 
     def harvest() -> None:
         """Record whatever is on the slide currently being shown."""
@@ -196,23 +146,20 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
         if not want_videos:
             # Note the gap so the numbering keeps the post's real shape.
             items.append({"kind": "video_skipped"})
-            sniffer.clear()
             return
 
-        nudge_videos(page)
-        time.sleep(VIDEO_SETTLE)
+        position = len(items) + 1
+        known = known_videos.get(position)
+        if known:
+            # Named by the page itself: no playback, no sniffing, no guessing.
+            items.append({"kind": "video", "urls": [known], "width": 0})
+            return
 
-        urls = sniffer.drain(seen_videos)
-        if not urls:
-            fallback = og_video_url(page)
-            if fallback and video_key(fallback) not in seen_videos:
-                seen_videos.add(video_key(fallback))
-                urls = [fallback]
-
-        if urls:
-            items.append({"kind": "video", "urls": urls, "width": 0})
-        else:
-            items.append({"kind": "video_skipped"})
+        # Nothing authoritative for this slide. Watching traffic is guesswork
+        # (the browser prefetches other posts' videos), so rather than risk
+        # filing someone else's video, record the gap and move on.
+        print(f"    ! slide {position}: the page did not name its video, skipping")
+        items.append({"kind": "video_skipped"})
 
     harvest()
     for _ in range(max_slides):

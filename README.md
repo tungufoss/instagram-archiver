@@ -8,9 +8,9 @@ Save local copies of the Instagram **photographs** that **your own logged-in
 account can already see** at full resolution, with metadata, in a sensible folder structure — a class
 group, a family account, your own posts.
 
-**Photographs only, for now.** Videos are opt-in and experimental: see
-[Videos and reels](#videos-and-reels-not-yet). A carousel slide holding a video
-leaves a labelled placeholder, so nothing goes missing silently.
+Photographs are saved by default. `--videos` adds videos, and `--include-reels`
+adds reels; a video that is not saved leaves a labelled placeholder so nothing
+goes missing silently.
 
 It drives a real Chromium window through Playwright using a persistent local
 browser profile. You log in by hand once; the session is reused after that.
@@ -230,7 +230,7 @@ Watch progress live with a status line printed after every post:
 | `--out DIR` | where to save media (default `./ig_archiver`) |
 | `--browser-profile DIR` | override the session directory |
 | `--headless` | no window; only useful after `login` has succeeded once |
-| `--videos` | EXPERIMENTAL: also download videos, see above |
+| `--videos` | also download videos (off by default) |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
 | `--force` | ignore the index and fetch everything again, overwriting what is there |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
@@ -255,24 +255,20 @@ Photos are taken at the widest candidate in each `<img>`'s `srcset`, which is
 the highest resolution Instagram served your browser — typically 2500–3900 px
 wide, far above the 640 px `og:image` preview.
 
-### Videos and reels (not yet)
-
-`--videos` exists and is **experimental**: it can save a video belonging to a
-different post. Leave it off unless you are helping to fix it.
+### Videos
 
 A `<video>` element's `src` is a `blob:` URL, so the DOM holds no downloadable
-address. Instead the tool watches the page's own network requests and keeps any
-`.mp4` fetched from an Instagram or Facebook CDN host. On each slide it starts
-the video muted so the browser actually requests the file, waits three seconds,
-then collects what was requested. Players fetch byte ranges, so `bytestart` and
-`byteend` are stripped before downloading, which makes the CDN return the whole
-file.
+address. Watching network traffic does not help either: the browser prefetches
+videos belonging to *other* posts, so choosing among the `.mp4` requests by
+size or arrival order is guesswork. Measured on one post: 8 mp4 requests
+covering 3 distinct videos, on a page where nothing was played. That guesswork
+once put a stranger's video inside a family carousel.
 
-The flaw is attribution. Instagram requests videos the viewer never asked for -
-measured: 8 mp4 requests covering 3 distinct videos on a page where nothing was
-played. Choosing among them by size or arrival order is guesswork, and it
-guesses wrong often enough to matter. Fixing this needs the post's own media
-URLs from Instagram's GraphQL payload, which is not always served.
+Instead, Instagram server-renders the post into the page as JSON, including a
+`carousel_media` array with a `video_versions` list per slide. The tool reads
+that: the page's own answer to which video belongs to slide 4, at the highest
+resolution offered. When a slide's video is not named there, the tool writes a
+placeholder and says so rather than saving a guess.
 
 ### Author and date
 
@@ -330,7 +326,7 @@ Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`.
 - Video quality is whatever Instagram serves your browser — typically a
   compressed rendition, not an original master.
 - Stories, highlights and archived posts are not covered.
-- Videos and reels are not part of this release; see above.
+- Video quality is whatever Instagram offers, not an original master.
 - Instagram changes its markup without warning; selectors may need updating.
 
 ## Your data

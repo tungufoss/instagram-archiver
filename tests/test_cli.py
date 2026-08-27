@@ -57,9 +57,9 @@ def test_flag_before_subcommand_survives_the_subcommand_pass():
 
 
 def test_flags_may_be_mixed_either_side():
-    args = parse_args(["--videos", "profile", URL, "--flatten"])
+    args = parse_args(["--videos", "profile", URL, "--nested"])
     assert args.videos is True
-    assert args.flatten is True
+    assert args.flatten is False
 
 
 def test_old_skip_videos_flag_still_parses():
@@ -77,7 +77,7 @@ def test_unsupplied_flags_are_false_not_none():
     args = parse_args(["profile", URL])
     assert args.videos is False
     assert args.include_reels is False
-    assert args.flatten is False
+    assert args.flatten is True          # flat is the default layout
     assert args.headless is False
     assert args.out is None
 
@@ -86,3 +86,27 @@ def test_force_defaults_off_and_parses_either_side():
     assert parse_args(["profile", URL]).force is False
     assert parse_args(["--force", "profile", URL]).force is True
     assert parse_args(["profile", URL, "--force"]).force is True
+
+
+# --- layout ---------------------------------------------------------------
+
+
+def test_flat_is_the_default_layout():
+    assert parse_args(["profile", URL]).flatten is True
+
+
+def test_nested_opts_out():
+    assert parse_args(["--nested", "profile", URL]).flatten is False
+    assert parse_args(["profile", URL, "--nested"]).flatten is False
+
+
+def test_old_flatten_flag_still_parses():
+    """It is the default now, but typing it must not be an error."""
+    assert parse_args(["--flatten", "profile", URL]).flatten is True
+
+
+def test_relayout_command_needs_no_url():
+    args = parse_args(["relayout"])
+    assert args.command == "relayout"
+    assert args.flatten is True
+    assert args.dry_run is False

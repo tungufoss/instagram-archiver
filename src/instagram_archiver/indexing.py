@@ -50,6 +50,28 @@ def load_archived_files(out_dir: Path) -> dict[tuple[str, int], Path]:
     return found
 
 
+def write_index_rows(out_dir: Path, rows: list[dict]) -> None:
+    """Write both index files from raw rows, e.g. after a layout change."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / INDEX_JSON).write_text(
+        json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    fields: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fields:
+                fields.append(key)
+    if not fields:
+        return
+    with (out_dir / INDEX_CSV).open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=fields, restval="", extrasaction="ignore"
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
     """Merge new records into the index, then rewrite both files."""
     if not records:

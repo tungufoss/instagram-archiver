@@ -64,14 +64,14 @@ class Summary:
         return len({r.post_id for r in self.records})
 
 
-def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=True,
+def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
               username_hint=None, flatten=False, archived=None):
     """Download every photo and video in one post. Returns its MediaRecords."""
     post_id = post_id_from(post_url)
     print(f"- {post_url}")
 
     meta, items = collect_post_media(
-        page, sniffer, post_url, want_videos, username_hint=username_hint
+        page, post_url, want_videos, username_hint=username_hint
     )
     if not items:
         return []
@@ -79,9 +79,8 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     post_date, username = meta.date, meta.username
 
     # One folder per account, so archiving several accounts stays tidy.
-    # Reels go in their own subfolder: they carry no photographs, and their
-    # video cannot currently be attributed reliably, so keeping them apart
-    # keeps the trustworthy material trustworthy.
+    # Reels go in their own subfolder: they carry no photographs, so keeping
+    # them apart leaves the photo archive as a photo archive.
     account_dir = account_dir_name(username)
     root = out_dir / account_dir
     if "/reel/" in post_url:
@@ -238,31 +237,35 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     return records
 
 
-def prune_empty_dirs(root: Path) -> int:
-    """Remove directories a layout change has emptied. Returns how many.
+def prune_empty_dirs(root: Path) -> tuple[int, int]:
+    """Remove directories a layout change has emptied.
 
-    Switching to --flatten moves every file out of its per-post folder, and
-    leaving a few dozen empty ones behind is untidy rather than harmful.
+    Returns (removed, could_not_remove). The second number matters on Windows,
+    where a sync client such as OneDrive keeps handles on folders it is
+    watching and rmdir fails with a permission error. Failing silently there
+    left dozens of empty folders behind with nothing to explain them.
+
     Deepest first, so a folder emptied by its children is caught in one pass.
     """
     removed = 0
+    stuck = 0
     if not root.is_dir():
-        return removed
+        return removed, stuck
     for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
         if path.is_dir() and not any(path.iterdir()):
             try:
                 path.rmdir()
                 removed += 1
             except OSError:
-                pass
-    return removed
+                stuck += 1
+    return removed, stuck
 
 
-def archive_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=True,
+def archive_post(context, page, post_url, out_dir, hashes, want_videos=True,
                  flatten=False, archived=None):
     summary = Summary()
     records = save_post(
-        context, page, sniffer, post_url, out_dir, hashes, want_videos,
+        context, page, post_url, out_dir, hashes, want_videos,
         flatten=flatten, archived=archived,
     )
     summary.records += records
@@ -273,7 +276,7 @@ def archive_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=
 
 
 def archive_profile(
-    context, page, sniffer, profile_url, out_dir, hashes,
+    context, page, profile_url, out_dir, hashes,
     want_videos=True, max_posts=None, flatten=False, include_reels=False,
     archived=None,
 ):
@@ -303,7 +306,7 @@ def archive_profile(
     for i, post_url in enumerate(targets, start=1):
         print(f"[{i}/{len(targets)}]", end=" ")
         records = save_post(
-            context, page, sniffer, post_url, out_dir, hashes, want_videos, hint,
+            context, page, post_url, out_dir, hashes, want_videos, hint,
             flatten, archived,
         )
         summary.records += records
@@ -316,8 +319,11 @@ def archive_profile(
         if i < len(targets):
             nap(POST_PAUSE)
 
-    emptied = prune_empty_dirs(out_dir)
+    emptied, stuck = prune_empty_dirs(out_dir)
     if emptied:
         print(f"  tidied {emptied} empty folder(s) left by the layout change")
+    if stuck:
+        print(f"  ! {stuck} empty folder(s) could not be removed (permission "
+              f"denied - a sync client such as OneDrive may be holding them)")
 
     return summary
