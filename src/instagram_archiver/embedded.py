@@ -113,8 +113,15 @@ def _comment_from(node: dict) -> Comment | None:
 
 
 def _comments_of(media: dict) -> list[Comment]:
-    """Comments carried by the post object, in the order the page lists them."""
+    """Comments carried by the post object, in the order the page lists them.
+
+    Instagram has used several shapes for this, and a server-rendered page
+    often carries only `preview_comments` - the handful shown before you press
+    "view all". Whatever is there is what gets recorded.
+    """
     raw = media.get("comments")
+    if raw is None:
+        raw = media.get("preview_comments")
     if raw is None:
         edges = (media.get("edge_media_to_parent_comment")
                  or media.get("edge_media_to_comment") or {})

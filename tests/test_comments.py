@@ -104,3 +104,28 @@ def test_same_words_from_different_people_both_kept(tmp_path):
 def test_nothing_to_write(tmp_path):
     assert write_comments(tmp_path, []) == 0
     assert not (tmp_path / "comments.json").exists()
+
+
+def test_preview_comments_are_read():
+    """A server-rendered page often carries only the preview handful."""
+    block = json.dumps({
+        "code": CODE,
+        "image_versions2": {"candidates": [{"width": 1440, "height": 1080}]},
+        "preview_comments": [
+            {"user": {"username": "someone"}, "created_at": 1770000000,
+             "text": "Lovely"},
+        ],
+    })
+    got = parse_post([block], CODE).comments
+    assert [c.username for c in got] == ["someone"]
+
+
+def test_comments_takes_precedence_over_preview():
+    block = json.dumps({
+        "code": CODE,
+        "image_versions2": {"candidates": [{"width": 1440, "height": 1080}]},
+        "comments": [{"user": {"username": "full"}, "created_at": 1, "text": "a"}],
+        "preview_comments": [{"user": {"username": "preview"}, "created_at": 1,
+                              "text": "b"}],
+    })
+    assert [c.username for c in parse_post([block], CODE).comments] == ["full"]
