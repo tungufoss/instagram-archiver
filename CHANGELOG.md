@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Changing the output layout now moves files already in the archive instead of
+  downloading them again, in either direction, and tidies up the folders it
+  empties. A layout-only run reports `Files downloaded: 0`.
+
+### Fixed
+
+- The run summary counted relocated files as downloads.
+- The log line for a placeholder repeated the account folder in its path.
+- Single-post runs did not tidy up folders a layout change had emptied.
+
 ## [0.1.0] - 2026-08-27
 
 First release. **Photographs only** — see Known limitations.

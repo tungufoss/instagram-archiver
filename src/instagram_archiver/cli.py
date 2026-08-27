@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import __version__, logfile
 from .archive import Summary, archive_post, archive_profile
-from .indexing import load_known_hashes, write_index
+from .indexing import load_archived_files, load_known_hashes, write_index
 from .paths import default_browser_profile_dir, default_output_dir
 from .scraper import PrivateProfile, VideoSniffer
 from .session import NotLoggedIn, browser_session, ensure_login
@@ -149,7 +149,11 @@ def print_summary(summary: Summary, out_dir: Path) -> None:
     print("=" * 50)
     print(f"Posts visited        : {summary.posts_visited}")
     print(f"Posts yielding media : {summary.posts_with_media}")
-    print(f"Images downloaded    : {summary.images}")
+    downloaded = summary.images + summary.videos - summary.moved
+    print(f"Files downloaded     : {max(downloaded, 0)}")
+    if summary.moved:
+        print(f"Files moved          : {summary.moved} (already had them)")
+    print(f"Images               : {summary.images}")
     print(f"Videos downloaded    : {summary.videos}")
     if summary.skipped_videos:
         print(f"Videos not saved     : {summary.skipped_videos} "
@@ -204,6 +208,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"logging to {log_path}")
 
     hashes = set() if args.force else load_known_hashes(out_dir)
+    # Where the files we already hold are sitting, so a layout change moves
+    # them rather than downloading everything a second time.
+    archived = {} if args.force else load_archived_files(out_dir)
     if args.force:
         print("--force: ignoring the index, everything will be fetched again.")
         print("")
@@ -227,13 +234,13 @@ def main(argv: list[str] | None = None) -> int:
                         return 2
                     summary = archive_post(
                         context, page, sniffer, post_url, out_dir, hashes,
-                        want_videos, args.flatten,
+                        want_videos, args.flatten, archived,
                     )
                 else:
                     summary = archive_profile(
                         context, page, sniffer, args.url, out_dir, hashes,
                         want_videos, args.max_posts, args.flatten,
-                        args.include_reels,
+                        args.include_reels, archived,
                     )
             finally:
                 # archive_* writes after each post; this catches anything that

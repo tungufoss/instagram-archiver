@@ -134,6 +134,11 @@ ig_archiver/
 
 Photos and videos share one numbering sequence per post, in carousel order.
 
+Switching layout does not re-download anything. If a file is already in the
+archive, changing `--flatten` moves it into its new place and updates the
+index; folders left empty are tidied up. It works in both directions, and a
+run that only changes layout reports `Files downloaded: 0`.
+
 ### Placeholders for videos that were not saved
 
 With `--skip-videos`, a carousel slide that held a video would otherwise leave

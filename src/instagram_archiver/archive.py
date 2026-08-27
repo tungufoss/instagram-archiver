@@ -52,6 +52,10 @@ class Summary:
         return sum(1 for r in self.records if r.media_type == "video")
 
     @property
+    def moved(self) -> int:
+        return sum(1 for r in self.records if r.relocated)
+
+    @property
     def skipped_videos(self) -> int:
         return sum(1 for r in self.records if r.media_type == "video_skipped")
 
@@ -61,7 +65,7 @@ class Summary:
 
 
 def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=True,
-              username_hint=None, flatten=False):
+              username_hint=None, flatten=False, archived=None):
     """Download every photo and video in one post. Returns its MediaRecords."""
     post_id = post_id_from(post_url)
     print(f"- {post_url}")
@@ -94,7 +98,21 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
         """Mark a video we deliberately did not download."""
         filename = f"{prefix}{position:02d}{placeholder.SUFFIX}"
         dest = folder / filename
-        placeholder.write(dest)
+
+        # A placeholder is cheap to recreate, but moving the existing one keeps
+        # its timestamp and avoids churning the file on every layout change.
+        held = (archived or {}).get((post_id, position))
+        reusable = (
+            held is not None
+            and held != dest
+            and held.is_file()
+            and held.name.endswith(placeholder.SUFFIX)
+        )
+        if reusable:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(held), str(dest))
+        else:
+            placeholder.write(dest)
         if meta.timestamp is not None:
             try:
                 os.utime(dest, (meta.timestamp, meta.timestamp))
@@ -114,7 +132,8 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
                 sha256="",
             )
         )
-        print(f"  . {account_dir}/{folder.name}/{filename}  (video not saved)")
+        shown = dest.relative_to(out_dir).as_posix()
+        print(f"  . {shown}  (video not saved)")
 
     def file_it(position, local_path, source_url, media_type, extension, note=""):
         """File one item under its position in the post."""
@@ -128,6 +147,30 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
         if already_archived(dest, hashes):
             print(f"  = already have {filename}")
             return
+
+        # We may already hold these bytes somewhere else in the archive - the
+        # usual case being a layout change such as --flatten. Moving beats
+        # downloading a copy of what is already on the disk.
+        held = (archived or {}).get((post_id, position))
+        if held is not None and held != dest and held.is_file():
+            if held.suffix == dest.suffix:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(held), str(dest))
+                digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+                hashes.add(digest)
+                records.append(
+                    MediaRecord(
+                        post_url=post_url, username=username, post_id=post_id,
+                        post_date=post_date, media_type=media_type,
+                        carousel_index=position, filename=filename,
+                        relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
+                        source_url=source_url,
+                        sha256=digest,
+                        relocated=True,
+                    )
+                )
+                print(f"  > moved {held.name} -> {dest.relative_to(out_dir).as_posix()}")
+                return
 
         if local_path is None:                          # image: fetch it now
             digest = fetch(context, source_url, dest, MIN_IMAGE_BYTES)
@@ -195,21 +238,44 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     return records
 
 
+def prune_empty_dirs(root: Path) -> int:
+    """Remove directories a layout change has emptied. Returns how many.
+
+    Switching to --flatten moves every file out of its per-post folder, and
+    leaving a few dozen empty ones behind is untidy rather than harmful.
+    Deepest first, so a folder emptied by its children is caught in one pass.
+    """
+    removed = 0
+    if not root.is_dir():
+        return removed
+    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        if path.is_dir() and not any(path.iterdir()):
+            try:
+                path.rmdir()
+                removed += 1
+            except OSError:
+                pass
+    return removed
+
+
 def archive_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=True,
-                 flatten=False):
+                 flatten=False, archived=None):
     summary = Summary()
     records = save_post(
-        context, page, sniffer, post_url, out_dir, hashes, want_videos, flatten=flatten
+        context, page, sniffer, post_url, out_dir, hashes, want_videos,
+        flatten=flatten, archived=archived,
     )
     summary.records += records
     summary.posts_visited = 1
     write_index(out_dir, records)
+    prune_empty_dirs(out_dir)
     return summary
 
 
 def archive_profile(
     context, page, sniffer, profile_url, out_dir, hashes,
     want_videos=True, max_posts=None, flatten=False, include_reels=False,
+    archived=None,
 ):
     summary = Summary()
     skipped_reels: list[str] = []
@@ -237,7 +303,8 @@ def archive_profile(
     for i, post_url in enumerate(targets, start=1):
         print(f"[{i}/{len(targets)}]", end=" ")
         records = save_post(
-            context, page, sniffer, post_url, out_dir, hashes, want_videos, hint, flatten
+            context, page, sniffer, post_url, out_dir, hashes, want_videos, hint,
+            flatten, archived,
         )
         summary.records += records
         summary.posts_visited += 1
@@ -248,5 +315,9 @@ def archive_profile(
               flush=True)
         if i < len(targets):
             nap(POST_PAUSE)
+
+    emptied = prune_empty_dirs(out_dir)
+    if emptied:
+        print(f"  tidied {emptied} empty folder(s) left by the layout change")
 
     return summary

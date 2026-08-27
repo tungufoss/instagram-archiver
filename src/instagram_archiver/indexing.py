@@ -29,7 +29,25 @@ def _read_existing(out_dir: Path) -> list[dict]:
 
 
 def load_known_hashes(out_dir: Path) -> set[str]:
-    return {row["sha256"] for row in _read_existing(out_dir) if "sha256" in row}
+    return {row["sha256"] for row in _read_existing(out_dir) if row.get("sha256")}
+
+
+def load_archived_files(out_dir: Path) -> dict[tuple[str, int], Path]:
+    """Where each already-saved item currently lives, keyed by post and position.
+
+    Lets a run that changes the output layout move files it already has rather
+    than downloading them a second time.
+    """
+    found: dict[tuple[str, int], Path] = {}
+    for row in _read_existing(out_dir):
+        try:
+            key = (row["post_id"], int(row["carousel_index"]))
+            path = out_dir / Path(row["relative_path"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if path.is_file():
+            found[key] = path
+    return found
 
 
 def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
@@ -38,13 +56,18 @@ def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
         return
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    existing = _read_existing(out_dir)
-    known = {(row.get("post_id"), row.get("sha256")) for row in existing}
-    merged = existing + [
-        asdict(record)
-        for record in records
-        if (record.post_id, record.sha256) not in known
-    ]
+    # Keyed so a new record supersedes an older one for the same content:
+    # a file that moved needs its recorded path updated, not a second row.
+    merged_by_key: dict[tuple, dict] = {}
+    for row in _read_existing(out_dir):
+        merged_by_key[(row.get("post_id"), row.get("sha256"),
+                       row.get("carousel_index"))] = row
+    for record in records:
+        row = asdict(record)
+        row.pop("relocated", None)      # a run detail, not archive data
+        merged_by_key[(record.post_id, record.sha256,
+                       record.carousel_index)] = row
+    merged = list(merged_by_key.values())
 
     (out_dir / INDEX_JSON).write_text(
         json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8"
