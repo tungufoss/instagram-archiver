@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Topic :: System :: Archiving :: Backup",
 ]
-dependencies = ["playwright>=1.44"]
+dependencies = ["playwright>=1.62.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
