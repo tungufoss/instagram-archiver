@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scan`, which records what a profile posted without downloading anything:
+  date and exact timestamp, post or reel, photo and video counts, likes,
+  comment count and caption, one row per post in `posts.csv` / `posts.json`
+  in the account's folder. About 3 seconds a post against 30 for archiving.
+- `followers`, which records who follows an account and reports who joined or
+  left since the last snapshot. Explicitly asked for, never part of a
+  normal run.
+- Like counts and comment counts on every post.
+- Comments read from the rendered page, since Instagram does not put them in
+  the page JSON - `preview_comments` is empty even on a post with 4,193.
+
+### Known issues
+
+- **A follower list comes back incomplete on a large account.** The dialog is
+  virtualised, and five strategies - jump to the bottom, small overlapping
+  steps, load-then-walk-back, a hybrid, and listening to network responses -
+  each returned between 432 and 459 of one account's 603. The shortfall is
+  reported rather than passed off as the whole list.
+- **Comment capture is thin.** Only what the page has loaded is read, which is
+  a handful on a busy post.
+- **View counts are not available.** Instagram leaves `view_count` null in the
+  served page even for a reel with 627,728 likes. Recorded as blank rather
+  than zero, since a null is not a zero.
+
 ## [0.2.0] - 2026-08-27
 
 Videos work. Reels are archived. Captions and comments are recorded.

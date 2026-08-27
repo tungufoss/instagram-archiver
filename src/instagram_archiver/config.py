@@ -25,6 +25,7 @@ MIN_IMAGE_PIXELS = 200
 SLIDE_PAUSE = (1.2, 2.0)      # between carousel slides
 POST_PAUSE = (3.0, 6.0)       # between posts
 SCROLL_PAUSE = (1.5, 2.5)     # between profile scrolls
+SCAN_PAUSE = (1.0, 2.0)       # between posts when only reading metadata
 
 # Seconds to let a playing video actually request its file.
 VIDEO_SETTLE = 3.0

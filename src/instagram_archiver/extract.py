@@ -130,3 +130,51 @@ def nudge_videos(page) -> int:
     except Exception:
         return 0
 
+
+
+# Comments are not server-rendered into the page JSON - `preview_comments` is
+# an empty list even on a post with four thousand of them. They are in the DOM
+# though, each with an exact timestamp, so that is where they are read from.
+#
+# Only what the page has loaded is taken. Instagram shows a dozen or so and
+# paginates the rest behind "view more"; clicking through thousands of other
+# people's remarks is not something this tool should do.
+READ_COMMENTS_JS = """
+() => {
+  const root = document.querySelector('article') || document.querySelector('main');
+  if (!root) return [];
+
+  const handleOf = el => {
+    const link = [...el.querySelectorAll('a[href^="/"]')].find(a => {
+      const parts = a.getAttribute('href').split('/').filter(Boolean);
+      return parts.length === 1;
+    });
+    return link ? link.getAttribute('href').split('/').filter(Boolean)[0] : null;
+  };
+
+  const out = [];
+  for (const time of root.querySelectorAll('time[datetime]')) {
+    let node = time.parentElement;
+    let holder = null;
+    for (let i = 0; i < 8 && node; i++) {
+      if (handleOf(node)) { holder = node; break; }
+      node = node.parentElement;
+    }
+    if (!holder) continue;
+    out.push({
+      username: handleOf(holder),
+      datetime: time.getAttribute('datetime'),
+      block: holder.innerText || '',
+    });
+  }
+  return out;
+}
+"""
+
+
+def read_comments(page):
+    """Raw comment blocks from the page, for cleaning in Python."""
+    try:
+        return page.evaluate(READ_COMMENTS_JS) or []
+    except Exception:
+        return []

@@ -75,7 +75,8 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
     print(f"- {post_url}")
 
     meta, items = collect_post_media(
-        page, post_url, want_videos, username_hint=username_hint
+        page, post_url, want_videos, username_hint=username_hint,
+        want_comments=want_comments,
     )
     if not items:
         return []
@@ -133,6 +134,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 source_url="",
                 sha256="",
                 caption=meta.caption,
+                comment_count=meta.comment_count,
             )
         )
         shown = dest.relative_to(out_dir).as_posix()
@@ -160,6 +162,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                     source_url=source_url,
                     sha256=hashlib.sha256(dest.read_bytes()).hexdigest(),
                     caption=meta.caption,
+                    comment_count=meta.comment_count,
                     refreshed=True,
                 )
             )
@@ -185,6 +188,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                         source_url=source_url,
                         sha256=digest,
                         caption=meta.caption,
+                        comment_count=meta.comment_count,
                         relocated=True,
                     )
                 )
@@ -233,6 +237,7 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 source_url=source_url,
                 sha256=digest,
                 caption=meta.caption,
+                comment_count=meta.comment_count,
             )
         )
         # A placeholder only ever stood in for this file. Now that the real
@@ -262,7 +267,12 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
             for c in meta.comments
         ])
         if added:
-            print(f"  ~ {added} comment(s)")
+            total = meta.comment_count
+            if total > len(meta.comments):
+                print(f"  ~ {added} comment(s) recorded; the post has {total}, "
+                      f"the rest are behind \"view more\" and were not fetched")
+            else:
+                print(f"  ~ {added} comment(s)")
 
     try:
         # The index is the slide's position in the post, so a file keeps the

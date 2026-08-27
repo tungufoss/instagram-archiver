@@ -25,6 +25,7 @@ class MediaRecord:
     source_url: str
     sha256: str
     caption: str = ""
+    comment_count: int = 0
     # True when this run moved an existing file rather than downloading it.
     # Not part of the index on disk; it only shapes the run summary.
     relocated: bool = False

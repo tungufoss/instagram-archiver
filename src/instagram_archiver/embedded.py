@@ -68,6 +68,12 @@ class PostData:
     items: list[dict] = field(default_factory=list)
     caption: str = ""
     comments: list[Comment] = field(default_factory=list)
+    comment_count: int = 0      # how many the post has, not how many we read
+    like_count: int = 0
+    # Instagram carries the field but leaves it null in the served page,
+    # even on a reel with hundreds of thousands of likes, so this is
+    # read but not recorded anywhere. Kept in case that changes.
+    view_count: int | None = None   # None means Instagram did not tell us
 
 
 def _caption_of(media: dict) -> str:
@@ -110,6 +116,43 @@ def _comment_from(node: dict) -> Comment | None:
         timestamp=_epoch_to_iso(node.get("created_at") or node.get("created_at_utc")),
         text=text.strip(),
     )
+
+
+def _int_of(media: dict, key: str) -> int:
+    try:
+        return max(int(media.get(key) or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _count_of(media: dict) -> int:
+    return _int_of(media, "comment_count")
+
+
+# Instagram has called this several things over the years, and a carousel
+# reports plays per slide rather than for the post.
+VIEW_KEYS = ("play_count", "view_count", "video_play_count", "ig_play_count")
+
+
+def _views_of(media: dict, items: list[dict]) -> int | None:
+    """Play count, or None when the page does not carry one.
+
+    Instagram leaves these null for anyone who is not the account itself, and
+    a null is not a zero: recording 0 would claim nobody watched.
+    """
+    for key in VIEW_KEYS:
+        if media.get(key) is not None:
+            return _int_of(media, key)
+
+    total = None
+    for slide in media.get("carousel_media") or []:
+        if not isinstance(slide, dict):
+            continue
+        for key in VIEW_KEYS:
+            if slide.get(key) is not None:
+                total = (total or 0) + _int_of(slide, key)
+                break
+    return total
 
 
 def _comments_of(media: dict) -> list[Comment]:
@@ -174,7 +217,10 @@ def parse_post(blocks: list[str], code: str) -> PostData | None:
             video = _best_video(item)
             parsed.append({"kind": "video", **video} if video else {"kind": "image"})
         return PostData(items=parsed, caption=_caption_of(media),
-                        comments=_comments_of(media))
+                        comments=_comments_of(media),
+                        comment_count=_count_of(media),
+                        like_count=_int_of(media, "like_count"),
+                        view_count=_views_of(media, parsed))
 
     return best
 

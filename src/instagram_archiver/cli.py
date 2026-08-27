@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from . import __version__, logfile, relayout
+from . import followers as follower_log
 from .archive import (
     Summary,
     archive_post,
@@ -15,7 +16,7 @@ from .archive import (
     prune_empty_dirs,
     save_post,
 )
-from .config import POST_PAUSE
+from .config import POST_PAUSE, SCAN_PAUSE
 from .indexing import (
     load_archived_files,
     load_known_hashes,
@@ -23,10 +24,18 @@ from .indexing import (
     write_index,
 )
 from .paths import default_browser_profile_dir, default_output_dir
+from .posts import PostRecord, summarise, write_posts
 from .progress import line as progress_line
-from .scraper import PrivateProfile, nap
+from .scraper import (
+    FollowersUnavailable,
+    PrivateProfile,
+    enumerate_profile_posts,
+    nap,
+    read_followers,
+    scan_post,
+)
 from .session import NotLoggedIn, browser_session, ensure_login
-from .urls import normalise_post_url
+from .urls import normalise_post_url, username_from_profile_url
 
 EPILOG = """\
 examples:
@@ -163,6 +172,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _common_options(fill, default=argparse.SUPPRESS)
     fill.set_defaults(url=None, max_posts=None)
+
+    scan = sub.add_parser(
+        "scan",
+        help="record what a profile posted - dates, counts, captions - without "
+             "downloading any media",
+    )
+    _common_options(scan, default=argparse.SUPPRESS)
+    scan.add_argument("url", help="profile URL")
+    scan.add_argument("--max-posts", type=int, default=None,
+                      help="stop after N posts")
+
+    who = sub.add_parser(
+        "followers",
+        help="record who follows an account, and what changed since last time",
+    )
+    _common_options(who, default=argparse.SUPPRESS)
+    who.add_argument("url", help="profile URL")
+    who.set_defaults(max_posts=None)
 
     post = sub.add_parser("post", help="archive one specific post URL")
     _common_options(post, default=argparse.SUPPRESS)
@@ -304,6 +331,69 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
 
             try:
+                if args.command == "followers":
+                    name = username_from_profile_url(args.url) or "unknown-account"
+                    found, stated = read_followers(page, args.url)
+                    account = follower_log.account_dir_for(out_dir, name)
+                    path, change = follower_log.write_snapshot(account, name, found)
+                    print()
+                    print("=" * 50)
+                    print(f"Followers    : {len(found)}"
+                          + (f" (the profile says {stated})"
+                             if stated and stated != len(found) else ""))
+
+                    # The names go in the file; the console gets a sample, or
+                    # a wall of several hundred handles scrolls everything away.
+                    def show(label, names):
+                        if not names:
+                            return
+                        head = ", ".join(names[:8])
+                        rest = f" and {len(names) - 8} more" if len(names) > 8 else ""
+                        print(f"{label:13}: {len(names)} - {head}{rest}")
+
+                    show("Joined", change.joined)
+                    show("Left", change.left)
+                    if change.quiet:
+                        print("Change       : none since the last snapshot")
+                    print(f"Snapshot     : {path}")
+                    print(f"Timeseries   : {account / follower_log.TIMESERIES_CSV}")
+                    print("=" * 50)
+                    return 0
+
+                if args.command == "scan":
+                    targets = enumerate_profile_posts(
+                        page, args.url, args.max_posts, args.include_reels
+                    )
+                    hint = username_from_profile_url(args.url)
+                    started = time.time()
+                    found = []
+                    for i, post_url in enumerate(targets, start=1):
+                        row = PostRecord(**scan_post(page, post_url, hint))
+                        found.append(row)
+                        # "p"/"r" for the kind; the counts say img/vid so the
+                        # two do not collide in the same line.
+                        kind = "r" if row.kind == "reel" else "p"
+                        caption = " ".join(row.caption.split())
+                        if len(caption) > 48:
+                            caption = caption[:47] + "…"
+                        print(f"[{i}/{len(targets)}] {row.post_date}  {kind}  "
+                              f"{row.images:>2}i {row.videos:>2}v  "
+                              f"{row.likes:>4} likes  {row.comments:>3} comments"
+                              + (f"  {caption}" if caption else ""))
+                        if i < len(targets):
+                            nap(SCAN_PAUSE)
+                    written = write_posts(out_dir, found)
+                    totals = summarise(found)
+                    print()
+                    print("=" * 50)
+                    for key, value in totals.items():
+                        print(f"{key.replace('_', ' ').title():14}: {value}")
+                    print(f"{'Elapsed':14}: {time.time() - started:.0f}s")
+                    for path in written:
+                        print(f"{'Written to':14}: {path / 'posts.csv'}")
+                    print("=" * 50)
+                    return 0
+
                 if args.command == "fill-videos":
                     targets = posts_missing_videos(out_dir)
                     if not targets:
@@ -348,6 +438,9 @@ def main(argv: list[str] | None = None) -> int:
                 # was collected before an error interrupted the loop.
                 write_index(out_dir, summary.records)
 
+    except FollowersUnavailable as exc:
+        print(exc, file=sys.stderr)
+        return 1
     except PrivateProfile as exc:
         print(exc, file=sys.stderr)
         return 1
