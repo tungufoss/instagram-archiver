@@ -7,6 +7,7 @@ When it isn't, we keep the larger file and say so.
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,16 +22,19 @@ def available() -> bool:
     return bool(FFMPEG and FFPROBE)
 
 
-def stream_kinds(path: Path) -> set[str] | None:
-    """Codec types in a media file, e.g. {'video', 'audio'}. None if unknown."""
+def probe(path: Path) -> tuple[set[str], int] | None:
+    """Return (codec types, largest video pixel count). None if unknown.
+
+    e.g. ({'video', 'audio'}, 2073600) for a 1080p file with sound.
+    """
     if not FFPROBE:
         return None
     try:
         proc = subprocess.run(
             [
                 FFPROBE, "-v", "error",
-                "-show_entries", "stream=codec_type",
-                "-of", "csv=p=0",
+                "-show_entries", "stream=codec_type,width,height",
+                "-of", "json",
                 str(path),
             ],
             capture_output=True,
@@ -41,7 +45,17 @@ def stream_kinds(path: Path) -> set[str] | None:
         return None
     if proc.returncode != 0:
         return None
-    return {line.strip() for line in proc.stdout.splitlines() if line.strip()}
+    try:
+        streams = json.loads(proc.stdout).get("streams", [])
+    except json.JSONDecodeError:
+        return None
+
+    kinds = {s.get("codec_type") for s in streams if s.get("codec_type")}
+    pixels = max(
+        (int(s.get("width") or 0) * int(s.get("height") or 0) for s in streams),
+        default=0,
+    )
+    return kinds, pixels
 
 
 def mux(video_path: Path, audio_path: Path, dest: Path) -> bool:

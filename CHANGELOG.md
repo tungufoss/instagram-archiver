@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   links, so author and date are now read from `og:description`, which was
   previously producing an advertiser's name and `unknown-date`.
 - Console output no longer crashes on emoji under Windows' cp1252 default.
+- A video slide saved every rendition Instagram's player fetched, not just one:
+  a single reel produced 37 files. All candidates for one slide describe the
+  same video, so the best rendition is chosen and any separate audio track is
+  merged into it. Picking by resolution rather than file size also gets a
+  better copy - the reel that prompted this went from 15 MB at a lower
+  resolution to 27 MB at 1440x2560, with sound.
 
 [Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.1.0
