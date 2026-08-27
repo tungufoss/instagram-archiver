@@ -238,46 +238,49 @@ videos were saved alongside it.
 ## What is visible, and to whom
 
 What this tool can record depends on the account you are reading and the
-account you are reading it as.
+account you are reading it as. Every row below was measured, not assumed.
 
-| | Private, you follow it | Public | The account itself |
+| | Private, you follow it | Public, as a viewer | Logged in as the account |
 | --- | --- | --- | --- |
 | Photographs, videos, captions, timestamps | yes | yes | yes |
-| Like counts, comment counts | yes | yes | yes |
 | Post or reel, photo and video counts | yes | yes | yes |
-| Comments themselves | only what the page loads | same | probably the same |
-| View counts | **no** — returns null | **no** — returns null | expected, unverified |
-| Follower **count** | yes | yes | yes |
-| Follower **names** | **none** — nothing to open | a large sample | expected in full, unverified |
+| Comment counts | yes | yes | yes |
+| **Like counts** | yes, but see below | **unreliable on older posts** | yes |
+| **Follower names** | none — nothing to open | a partial sample | **complete** |
+| Follower count | yes | yes | yes |
+| View counts | no — returns null | no — returns null | **no — still null** |
 
-Measured, not assumed: on a private account the count is plain text with no
-control to open, so no names at all. On a public account with 603 followers,
-five different strategies each returned between 432 and 459 names.
+### Like counts can be wrong when you are not the account
 
-The last column is a guess. Nothing here has been run while logged in **as**
-the account it was reading — the tests above read a public account from a
-different account — so whether Instagram then fills in `view_count` or serves
-the whole follower list is untested. To find out, give that account its own
-browser profile:
+Scanning one public account both ways, its four most recent posts reported the
+same likes either way, while four older ones reported **3** to a viewer and
+41, 54, 34 and 28 to the account itself. So a low like count read as a viewer
+may be a placeholder rather than a number.
 
-```bash
-instagram-archiver --browser-profile ./that-account login
-instagram-archiver --browser-profile ./that-account followers https://www.instagram.com/thataccount/
-```
+There is no way to tell from the outside which it is. Treat like counts from a
+viewer session as a lower bound.
 
-### Why the follower names are a sample
+### Follower names need the account itself
 
-The dialog is virtualised: it renders a window of rows and discards the rest,
-so scrolling past a row without reading it loses that name for good.
+Read as a viewer, the follower dialog is virtualised and five different
+strategies each returned between 432 and 459 of 603 names. Logged in as the
+account, the same code returned **606 of 603** — Instagram serves the list
+properly, and the tool reads it from those responses rather than from the
+rendered rows.
 
-A snapshot therefore records `complete: false` and the count it fell short of,
-and **two partial snapshots are not compared**. Comparing them would invent
-departures: a name missing from one run is usually a name that run did not
-see, not somebody who left. The count trend stays useful, and the names are a
-large sample of the membership.
+So follower tracking is worth doing only for accounts you can log in as. For
+anyone else's account you get a reliable count and a large sample of names.
 
-When a snapshot matches the stated count, the comparison runs normally and
-`joined` / `left` mean what they say.
+A snapshot records the count it was aiming for and whether it matched, and
+**two partial snapshots are never compared** — that would invent departures,
+since a name missing from one run is usually a name that run did not see.
+
+### View counts are not available at all
+
+Instagram leaves `view_count` null in the served page even for the account
+looking at its own posts, and even on a reel with 627,728 likes. It is
+recorded as blank rather than zero, because a null is not a claim that nobody
+watched.
 
 ## How long does it take?
 

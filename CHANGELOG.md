@@ -22,16 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known issues
 
-- **A follower list comes back incomplete on a large account.** The dialog is
-  virtualised, and five strategies - jump to the bottom, small overlapping
-  steps, load-then-walk-back, a hybrid, and listening to network responses -
-  each returned between 432 and 459 of one account's 603. The shortfall is
-  reported rather than passed off as the whole list.
+- **A follower list is complete only when logged in as the account.** Read as
+  a viewer the dialog is virtualised and five strategies each returned between
+  432 and 459 of one account's 603; logged in as that account the same code
+  returned all 606. The shortfall is reported rather than passed off as the
+  whole list, and partial snapshots are never compared.
+- **Like counts read as a viewer can be placeholders.** The same public
+  account reported 3 likes on four older posts to a viewer and 41, 54, 34 and
+  28 to itself. Recent posts agreed. Treat a viewer's like count as a lower
+  bound.
 - **Comment capture is thin.** Only what the page has loaded is read, which is
   a handful on a busy post.
-- **View counts are not available.** Instagram leaves `view_count` null in the
-  served page even for a reel with 627,728 likes. Recorded as blank rather
-  than zero, since a null is not a zero.
+- **View counts are not available to anyone**, including the account itself.
+  Instagram leaves `view_count` null in the served page. Recorded as blank
+  rather than zero, since a null is not a zero.
 
 ## [0.2.0] - 2026-08-27
 
