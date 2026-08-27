@@ -20,7 +20,7 @@ from .config import (
     SLIDE_PAUSE,
     VIDEO_SETTLE,
 )
-from .extract import extract_images, nudge_videos, read_username
+from .extract import count_post_videos, extract_images, nudge_videos, read_username
 from .metadata import date_to_epoch, iso_to_epoch, parse_og_description
 from .urls import (
     clean_video_url,
@@ -37,7 +37,6 @@ PRIVATE_RE = re.compile(r"this (account|profile) is private", re.I)
 # every selector below has to tolerate both.
 POST_MEDIA_SELECTOR = "article img, article video, main img, main video"
 POST_TIME_SELECTOR = "article time[datetime], main time[datetime]"
-POST_VIDEO_SELECTOR = "article video, main video"
 
 NEXT_SELECTORS = (
     'article button[aria-label="Next"]',
@@ -191,11 +190,9 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
             sniffer.clear()
             return
 
-        try:
-            has_video = page.locator(POST_VIDEO_SELECTOR).count() > 0
-        except Exception:
-            has_video = False
-        if not has_video:
+        # Counts only the post's own videos: a suggested reel below the post
+        # must not make us fetch and file its file as part of this post.
+        if count_post_videos(page) == 0:
             sniffer.clear()
             return
 
@@ -230,8 +227,13 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
 
 # ------------------------------------------------------- profile reading ---
 
-def enumerate_profile_posts(page, profile_url, max_posts=None):
-    """Scroll a profile and collect the post URLs this session can see."""
+def enumerate_profile_posts(page, profile_url, max_posts=None, include_reels=False):
+    """Scroll a profile and collect the post URLs this session can see.
+
+    Reels are skipped by default. A reel is normally the same video already
+    attached to a post, so fetching both doubles the work to produce bytes the
+    hash check throws away.
+    """
     page.goto(profile_url, wait_until="domcontentloaded")
     try:
         page.wait_for_selector("main", timeout=20_000)
@@ -253,6 +255,7 @@ def enumerate_profile_posts(page, profile_url, max_posts=None):
 
     urls: list[str] = []
     seen: set[str] = set()
+    skipped_reels: list[str] = []
     stagnant = 0
 
     while stagnant < SCROLL_STAGNANT_LIMIT:
@@ -262,9 +265,13 @@ def enumerate_profile_posts(page, profile_url, max_posts=None):
         before = len(seen)
         for href in hrefs:
             url = normalise_post_url(href or "")
-            if url and url not in seen:
-                seen.add(url)
-                urls.append(url)
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            if "/reel/" in url and not include_reels:
+                skipped_reels.append(url)
+                continue
+            urls.append(url)
 
         if max_posts and len(urls) >= max_posts:
             break
@@ -275,6 +282,9 @@ def enumerate_profile_posts(page, profile_url, max_posts=None):
         print(f"  ...{len(urls)} posts found so far", end="\r", flush=True)
 
     print(f"  found {len(urls)} posts on the profile." + " " * 20)
+    if skipped_reels:
+        print(f"  skipped {len(skipped_reels)} reels (use --include-reels to keep "
+              f"them; their video is usually already in a post)")
     if not urls:
         print("  ! No posts were visible to this session. Open the profile in the")
         print("    Chromium window yourself to see what Instagram is showing you.")

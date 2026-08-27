@@ -7,7 +7,7 @@ same video, so exactly one file should survive.
 
 from pathlib import Path
 
-from instagram_archiver.media import Candidate, pick_tracks
+from instagram_archiver.media import Candidate, pick_tracks, plan_downloads
 
 
 def cand(name, size, kinds=None, pixels=0):
@@ -87,3 +87,49 @@ def test_audio_only_candidates_still_return_something():
     video, audio = pick_tracks([a, b])
     assert video is b
     assert audio is None
+
+
+# --- deciding which candidates are worth downloading at all ----------------
+
+
+def test_plan_single_candidate():
+    assert plan_downloads([("a", 1000)]) == ["a"]
+
+
+def test_plan_never_downloads_more_than_two():
+    """13 renditions of one video must not mean 13 downloads."""
+    sizes = [(f"r{i}", 1_000_000 + i * 500_000) for i in range(13)]
+    plan = plan_downloads(sizes)
+    assert len(plan) <= 2
+    assert plan[0] == "r12"          # the best picture is always fetched
+
+
+def test_plan_drops_middle_renditions_entirely():
+    """Only the extremes matter: everything between them is a duplicate."""
+    sizes = [("tiny", 300_000), ("mid1", 4_000_000), ("mid2", 8_000_000),
+             ("best", 20_000_000)]
+    assert plan_downloads(sizes) == ["best", "tiny"]
+
+
+def test_plan_fetches_a_plausible_audio_track_too():
+    sizes = [("video", 20_000_000), ("audio", 400_000)]
+    assert plan_downloads(sizes) == ["video", "audio"]
+
+
+def test_plan_ignores_a_merely_smaller_rendition():
+    """Half the size is another copy of the picture, not a soundtrack."""
+    sizes = [("hd", 20_000_000), ("sd", 10_000_000)]
+    assert plan_downloads(sizes) == ["hd"]
+
+
+def test_plan_boundary_ratio():
+    assert plan_downloads([("v", 1000), ("a", 250)]) == ["v", "a"]
+    assert plan_downloads([("v", 1000), ("a", 251)]) == ["v"]
+
+
+def test_plan_without_content_length_tries_a_couple():
+    assert plan_downloads([("a", None), ("b", None), ("c", None)]) == ["a", "b"]
+
+
+def test_plan_empty():
+    assert plan_downloads([]) == []

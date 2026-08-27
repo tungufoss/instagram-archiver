@@ -52,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-videos", action="store_true", help="save photographs only",
     )
     parser.add_argument(
+        "--include-reels", action="store_true",
+        help="also archive reels listed on a profile. Off by default: a reel is "
+             "usually the same video already attached to a post",
+    )
+    parser.add_argument(
         "--flatten", action="store_true",
         help="put an account's files straight in its folder, without a folder "
              "per post; filenames are prefixed with date and post ID",
@@ -89,17 +94,24 @@ def print_summary(summary: Summary, out_dir: Path) -> None:
     print("=" * 50)
 
 
-def _use_utf8_console() -> None:
-    """Windows consoles default to cp1252, which crashes on emoji in captions."""
+def _prepare_output() -> None:
+    """Make output safe and live.
+
+    Windows consoles default to cp1252, which crashes on emoji in captions.
+    Line buffering matters when output is piped to a log file: without it
+    Python block-buffers and a long run appears to produce nothing for
+    minutes at a time.
+    """
     for stream in (sys.stdout, sys.stderr):
         try:
-            stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, OSError):
+            stream.reconfigure(encoding="utf-8", errors="replace",
+                               line_buffering=True)
+        except (AttributeError, OSError, ValueError):
             pass
 
 
 def main(argv: list[str] | None = None) -> int:
-    _use_utf8_console()
+    _prepare_output()
     args = build_parser().parse_args(argv)
 
     out_dir = (args.out or default_output_dir()).resolve()
@@ -133,8 +145,11 @@ def main(argv: list[str] | None = None) -> int:
                     summary = archive_profile(
                         context, page, sniffer, args.url, out_dir, hashes,
                         want_videos, args.max_posts, args.flatten,
+                        args.include_reels,
                     )
             finally:
+                # archive_* writes after each post; this catches anything that
+                # was collected before an error interrupted the loop.
                 write_index(out_dir, summary.records)
 
     except PrivateProfile as exc:

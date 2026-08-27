@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import ffmpeg_tools
-from .config import MIN_VIDEO_BYTES
+from .config import AUDIO_SIZE_RATIO, MIN_VIDEO_BYTES
 
 
 @dataclass
@@ -104,6 +104,48 @@ def fetch(context, url: str, dest: Path, min_bytes: int) -> str | None:
     return hashlib.sha256(data).hexdigest()
 
 
+def content_length(context, url: str) -> int | None:
+    """Ask the CDN how big a file is without transferring it."""
+    try:
+        response = context.request.head(url, timeout=30_000)
+    except Exception:
+        return None
+    if not response.ok:
+        return None
+    raw = response.headers.get("content-length")
+    try:
+        return int(raw) if raw else None
+    except ValueError:
+        return None
+
+
+def plan_downloads(sizes: list[tuple[str, int | None]]) -> list[str]:
+    """Pick which candidate URLs are worth actually downloading.
+
+    A player may fetch a dozen renditions of one video plus a separate audio
+    track. They are all the same video, so downloading every one wastes
+    bandwidth and time. The largest is the best picture; an audio track, when
+    present, is far smaller than the video it accompanies. Fetching the largest
+    and the smallest covers both cases in two downloads instead of N.
+    """
+    known = [(url, size) for url, size in sizes if size]
+    if not known:
+        return [url for url, _ in sizes][:2]      # HEAD unsupported: try a couple
+
+    known.sort(key=lambda item: item[1])
+    smallest_url, smallest_size = known[0]
+    largest_url, largest_size = known[-1]
+
+    if largest_url == smallest_url:
+        return [largest_url]
+
+    # Only worth a second download if the small one could plausibly be an audio
+    # track rather than just a lower-bitrate copy of the same picture.
+    if smallest_size <= largest_size * AUDIO_SIZE_RATIO:
+        return [largest_url, smallest_url]
+    return [largest_url]
+
+
 def resolve_video(context, urls: list[str], work_dir: Path) -> list[tuple[Path, str]]:
     """Download one slide's candidates and return the single file to keep.
 
@@ -112,8 +154,13 @@ def resolve_video(context, urls: list[str], work_dir: Path) -> list[tuple[Path, 
     """
     work_dir.mkdir(parents=True, exist_ok=True)
 
+    wanted = plan_downloads([(url, content_length(context, url)) for url in urls])
+    skipped = len(urls) - len(wanted)
+    if skipped > 0:
+        print(f"    ({len(urls)} renditions offered, fetching {len(wanted)})")
+
     candidates: list[Candidate] = []
-    for i, url in enumerate(urls):
+    for i, url in enumerate(wanted):
         tmp = work_dir / f"cand{i:02d}.mp4"
         if fetch(context, url, tmp, MIN_VIDEO_BYTES) is None:
             continue

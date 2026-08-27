@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import time
 from dataclasses import dataclass, field
 
 from .config import MIN_IMAGE_BYTES, POST_PAUSE
+from .indexing import write_index
 from .media import MediaRecord, fetch, resolve_video
 from .paths import account_dir_name
+from .progress import line as progress_line
 from .scraper import collect_post_media, enumerate_profile_posts, nap
 from .urls import image_extension, post_id_from, username_from_profile_url
 
@@ -127,28 +130,37 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
 def archive_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=True,
                  flatten=False):
     summary = Summary()
-    summary.records += save_post(
+    records = save_post(
         context, page, sniffer, post_url, out_dir, hashes, want_videos, flatten=flatten
     )
+    summary.records += records
     summary.posts_visited = 1
+    write_index(out_dir, records)
     return summary
 
 
 def archive_profile(
     context, page, sniffer, profile_url, out_dir, hashes,
-    want_videos=True, max_posts=None, flatten=False,
+    want_videos=True, max_posts=None, flatten=False, include_reels=False,
 ):
     summary = Summary()
-    targets = enumerate_profile_posts(page, profile_url, max_posts)
+    targets = enumerate_profile_posts(page, profile_url, max_posts, include_reels)
+    started = time.time()
     # The profile URL names the account, which beats guessing from each page.
     hint = username_from_profile_url(profile_url)
 
     for i, post_url in enumerate(targets, start=1):
         print(f"[{i}/{len(targets)}]", end=" ")
-        summary.records += save_post(
+        records = save_post(
             context, page, sniffer, post_url, out_dir, hashes, want_videos, hint, flatten
         )
+        summary.records += records
         summary.posts_visited += 1
+        # Written per post, not at the end: an interrupted run must not lose
+        # the record of what it already fetched, or a re-run repeats the work.
+        write_index(out_dir, records)
+        print(progress_line(i, len(targets), len(summary.records), started),
+              flush=True)
         if i < len(targets):
             nap(POST_PAUSE)
 

@@ -180,6 +180,17 @@ Leave it running. There is no resume flag, but re-running is cheap: everything
 already in the index is skipped, so an interrupted run picks up where it left
 off.
 
+Video-heavy private accounts are considerably slower than the public account
+measured above — roughly 100–200 s per post rather than 33 s, because each
+video slide waits for playback to start and then downloads the file. A profile
+of mostly photos is much closer to the figures in the table.
+
+Watch progress live with a status line printed after every post:
+
+```text
+  [######..................]  26.7%  12/45 posts | 148 files | 09:12 elapsed | ~25:18 left
+```
+
 ## Options
 
 | Flag | Meaning |
@@ -188,6 +199,7 @@ off.
 | `--browser-profile DIR` | override the session directory |
 | `--headless` | no window; only useful after `login` has succeeded once |
 | `--skip-videos` | photographs only |
+| `--include-reels` | also archive reels listed on a profile (off by default) |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
 | `--max-posts N` | (profile mode) stop after N posts |
 | `--version` | print the version |
@@ -233,6 +245,22 @@ advertiser links, so reading the author from the DOM picks up a sponsor. The
 In profile mode the account name comes from the profile URL, which is better
 than any guess.
 
+### Reels are skipped by default
+
+A profile grid lists reels alongside posts, but a reel is normally the same
+video already attached to a post. Fetching both roughly doubles the work to
+produce bytes the hash check then discards, so profile mode skips `/reel/`
+URLs and says how many it skipped.
+
+`--include-reels` turns them back on. Passing a reel URL to `post` mode always
+works and is unaffected by this flag.
+
+**Known rough edge:** reel pages are the weakest part of the tool. They render
+no `<time>` element, their author has to be read from `og:description` because
+the surrounding links are advertisements, and they are the slowest pages to
+process. If a reel is the only copy of something you need, fetch it directly
+with `post` and check the result.
+
 ### Carousels and deduplication
 
 Carousels are walked by clicking Next until it disappears (capped at 25 slides),
@@ -260,6 +288,7 @@ Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`.
 - Video quality is whatever Instagram serves your browser — typically a
   compressed rendition, not an original master.
 - Stories, highlights and archived posts are not covered.
+- Reels are the least reliable surface; see above.
 - Instagram changes its markup without warning; selectors may need updating.
 
 ## Your data

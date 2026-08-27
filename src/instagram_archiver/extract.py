@@ -44,12 +44,18 @@ EXTRACT_IMAGES_JS = """
 
 # A <video> exposes a blob: src, which cannot be downloaded. Starting playback
 # muted makes the page fetch the real CDN file, which the request sniffer sees.
+#
+# Only the post's OWN video may be nudged. The suggested-reels strip below a
+# post contains <video> elements too, and playing those makes the page fetch
+# their files, which the sniffer would then file as part of this post. They are
+# excluded the same way suggested images are: they sit inside an <a href="/p/">.
 NUDGE_VIDEOS_JS = """
 () => {
-  const art = document.querySelector('article') || document.querySelector('main');
-  if (!art) return 0;
+  const root = document.querySelector('article') || document.querySelector('main');
+  if (!root) return 0;
   let n = 0;
-  for (const v of art.querySelectorAll('video')) {
+  for (const v of root.querySelectorAll('video')) {
+    if (v.closest("a[href*='/p/'], a[href*='/reel/']")) continue;   // suggested
     try {
       v.muted = true;
       const p = v.play();
@@ -58,6 +64,15 @@ NUDGE_VIDEOS_JS = """
     } catch (e) { /* autoplay refused; the media request still fires */ }
   }
   return n;
+}
+"""
+
+COUNT_POST_VIDEOS_JS = """
+() => {
+  const root = document.querySelector('article') || document.querySelector('main');
+  if (!root) return 0;
+  return [...root.querySelectorAll('video')]
+    .filter(v => !v.closest("a[href*='/p/'], a[href*='/reel/']")).length;
 }
 """
 
@@ -97,8 +112,16 @@ def extract_images(page):
 
 
 def nudge_videos(page) -> int:
-    """Start any videos muted; returns how many were nudged."""
+    """Start the post's own videos muted; returns how many were nudged."""
     try:
         return page.evaluate(NUDGE_VIDEOS_JS) or 0
+    except Exception:
+        return 0
+
+
+def count_post_videos(page) -> int:
+    """How many videos belong to this post, ignoring suggested content."""
+    try:
+        return page.evaluate(COUNT_POST_VIDEOS_JS) or 0
     except Exception:
         return 0

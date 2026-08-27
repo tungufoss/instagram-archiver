@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A progress line after each post, with counts, elapsed time and an estimate.
+- `--include-reels`; profile mode now skips reels by default, since a reel is
+  usually the same video already attached to a post.
+
+### Fixed
+
+- Videos belonging to the suggested-reels strip below a post were played,
+  downloaded and filed as part of that post. Only the post's own videos are
+  nudged now, using the same rule that already excluded suggested images.
+  This was also the source of the implausible rendition counts: those were
+  several unrelated reels buffering at once, not one video.
+- The index was only written when a run finished, so an interrupted run lost
+  the record of everything it had fetched and a re-run repeated the work. It
+  is now written after every post.
+- Output is line-buffered, so piping a run to a log file shows progress as it
+  happens instead of nothing for minutes.
+- Only the renditions worth having are downloaded, sized with a HEAD request
+  first, rather than fetching every candidate and discarding most.
+
 ## [0.1.0] - 2026-08-27
 
 ### Added

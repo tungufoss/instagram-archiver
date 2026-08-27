@@ -13,6 +13,11 @@ CDN_HOSTS = ("cdninstagram", "fbcdn")
 MIN_IMAGE_BYTES = 5_000
 MIN_VIDEO_BYTES = 50_000
 
+# A separate audio track is a small fraction of the video it belongs to.
+# Anything larger than this share of the biggest candidate is just a
+# lower-bitrate copy of the same picture, not worth downloading.
+AUDIO_SIZE_RATIO = 0.25
+
 # On-screen size below which an <img> is treated as chrome, not content.
 MIN_IMAGE_PIXELS = 200
 
