@@ -309,12 +309,14 @@ advertiser links, so reading the author from the DOM picks up a sponsor. The
 In profile mode the account name comes from the profile URL, which is better
 than any guess.
 
-### Reels are skipped by default
+### Reels are ordinary posts
 
-A profile grid lists reels alongside posts, but a reel is normally the same
-video already attached to a post. Fetching both roughly doubles the work to
-produce bytes the hash check then discards, so profile mode skips `/reel/`
-URLs and says how many it skipped.
+A profile links some of its own posts as `/reel/<code>/` — typically the ones
+holding only a video. They are that account's posts and are archived like any
+other, in the same folder, in date order. `--skip-reels` leaves them out.
+
+They are read from their `/p/` URL: `/reel/<code>/` renders a scrolling player
+full of other people's reels and omits the post's own media from the page.
 
 `--include-reels` turns them back on. Passing a reel URL to `post` mode always
 works and is unaffected by this flag.

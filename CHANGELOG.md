@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Post captions are recorded in the index, so an archive says what each post
+  was about rather than only what it contained.
+
+### Changed
+
+- Posts the profile links as reels are archived by default and sit beside the
+  account's other posts. They were skipped, on the mistaken understanding that
+  a reel duplicates a video already in a post; in fact they are ordinary posts,
+  usually the ones holding only a video, and skipping them lost six of one
+  account's forty-five posts outright. `--skip-reels` leaves them out.
+- A file already on disk has its index row rewritten rather than skipped, so
+  details learned since it was saved reach the index without refetching it.
+
+### Added
+
 - `fill-videos`, which reads the index and visits only the posts holding a
   placeholder. Filling 15 videos across 6 posts took 131 seconds against about
   14 minutes to walk the whole profile.

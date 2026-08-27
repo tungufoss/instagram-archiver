@@ -19,7 +19,6 @@ from .scraper import collect_post_media, enumerate_profile_posts, nap
 from .urls import image_extension, post_id_from, username_from_profile_url
 
 WORK_DIR_NAME = ".work"
-REELS_DIR_NAME = "reels"
 
 
 def already_archived(dest: Path, hashes: set[str]) -> bool:
@@ -83,12 +82,11 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
     post_date, username = meta.date, meta.username
 
     # One folder per account, so archiving several accounts stays tidy.
-    # Reels go in their own subfolder: they carry no photographs, so keeping
-    # them apart leaves the photo archive as a photo archive.
+    # A post the profile links as a reel is an ordinary post of that account's,
+    # so it belongs beside the others: filing it separately split the archive's
+    # chronology to no purpose.
     account_dir = account_dir_name(username)
     root = out_dir / account_dir
-    if "/reel/" in post_url:
-        root = root / REELS_DIR_NAME
 
     # --flatten drops the per-post folder and prefixes the filename instead.
     stem = f"{post_date}_{post_id}"

@@ -14,8 +14,6 @@ from .indexing import _read_existing, write_index_rows
 from .paths import account_dir_name
 from .placeholder import SUFFIX as PLACEHOLDER_SUFFIX
 
-REELS_DIR_NAME = "reels"
-
 
 def _tail(filename: str, stem: str) -> str:
     """The part of a filename after any `<date>_<postid>_` prefix."""
@@ -34,9 +32,6 @@ def desired_path(out_dir: Path, row: dict, flatten: bool) -> Path | None:
         return None
 
     root = out_dir / account_dir_name(username)
-    if "/reel/" in (row.get("post_url") or ""):
-        root = root / REELS_DIR_NAME
-
     stem = f"{post_date}_{post_id}"
     tail = _tail(filename, stem)
     return root / f"{stem}_{tail}" if flatten else root / stem / tail

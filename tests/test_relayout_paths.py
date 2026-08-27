@@ -48,10 +48,11 @@ def test_placeholders_keep_their_compound_suffix():
     assert got.name == "2026-06-08_ABC_04.video-not-saved.png"
 
 
-def test_reels_stay_in_their_own_subfolder():
+def test_a_reel_sits_beside_the_other_posts():
+    """A reel is an ordinary post of the account's, not a separate category."""
     reel = row(post_url="https://www.instagram.com/reel/XYZ/")
     got = desired_path(OUT, reel, flatten=True)
-    assert got == OUT / "someaccount" / "reels" / "2026-06-08_ABC_01.jpg"
+    assert got == OUT / "someaccount" / "2026-06-08_ABC_01.jpg"
 
 
 def test_incomplete_row_is_ignored():
