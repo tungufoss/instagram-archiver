@@ -74,3 +74,9 @@ def test_unsupplied_flags_are_false_not_none():
     assert args.flatten is False
     assert args.headless is False
     assert args.out is None
+
+
+def test_force_defaults_off_and_parses_either_side():
+    assert parse_args(["profile", URL]).force is False
+    assert parse_args(["--force", "profile", URL]).force is True
+    assert parse_args(["profile", URL, "--force"]).force is True

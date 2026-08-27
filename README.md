@@ -183,7 +183,12 @@ anything already recorded, appends the new rows and rewrites both files.
 | `sha256` | hash of the bytes |
 
 Re-running is safe: hashes are loaded from the index first, so files already on
-disk are never downloaded twice.
+disk are never downloaded twice. `--force` ignores the index and fetches
+everything again, which is what you want after changing *what* gets saved.
+
+A file's number is its position in the post, not a running count of what a
+particular run downloaded. That way a photo keeps the same name whether or not
+videos were saved alongside it.
 
 ## How long does it take?
 
@@ -226,6 +231,7 @@ Watch progress live with a status line printed after every post:
 | `--headless` | no window; only useful after `login` has succeeded once |
 | `--skip-videos` | photographs only; videos leave a placeholder image |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
+| `--force` | ignore the index and fetch everything again, overwriting what is there |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
 | `--max-posts N` | (profile mode) stop after N posts |
 | `--version` | print the version |

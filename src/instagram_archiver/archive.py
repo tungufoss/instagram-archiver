@@ -64,12 +64,9 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     prefix = f"{stem}_" if flatten else ""
     work_dir = out_dir / account_dir / WORK_DIR_NAME
     records: list[MediaRecord] = []
-    position = 0
 
-    def file_placeholder():
+    def file_placeholder(position):
         """Mark a video we deliberately did not download."""
-        nonlocal position
-        position += 1
         filename = f"{prefix}{position:02d}{placeholder.SUFFIX}"
         dest = folder / filename
         placeholder.write(dest)
@@ -94,17 +91,14 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
         )
         print(f"  . {account_dir}/{folder.name}/{filename}  (video not saved)")
 
-    def file_it(local_path, source_url, media_type, extension, note=""):
-        """File one finished item under the next sequence number."""
-        nonlocal position
-        position += 1
+    def file_it(position, local_path, source_url, media_type, extension, note=""):
+        """File one item under its position in the post."""
         filename = f"{prefix}{position:02d}{extension}"
         dest = folder / filename
 
         if local_path is None:                          # image: fetch it now
             digest = fetch(context, source_url, dest, MIN_IMAGE_BYTES)
             if digest is None:
-                position -= 1
                 return
         else:                                           # video: already local
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -113,8 +107,7 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
 
         if digest in hashes:                            # already in the library
             dest.unlink(missing_ok=True)
-            position -= 1
-            print(f"  = duplicate skipped ({filename})")
+            print(f"  = already have {filename}")
             return
 
         # Stamp the file with when the post was made, not when we fetched it,
@@ -147,15 +140,19 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
         print(f"  + {shown}  {note}")
 
     try:
-        for item in items:
+        # The index is the slide's position in the post, so a file keeps the
+        # same number no matter what a given run happens to download.
+        for position, item in enumerate(items, start=1):
             if item["kind"] == "video_skipped":
-                file_placeholder()
+                file_placeholder(position)
             elif item["kind"] == "image":
-                file_it(None, item["url"], "image", image_extension(item["url"]))
+                file_it(position, None, item["url"], "image",
+                        image_extension(item["url"]))
             else:
                 for path, source_url in resolve_video(context, item["urls"], work_dir):
                     size_mb = path.stat().st_size / 1_048_576
-                    file_it(path, source_url, "video", ".mp4", f"(video, {size_mb:.1f} MB)")
+                    file_it(position, path, source_url, "video", ".mp4",
+                            f"(video, {size_mb:.1f} MB)")
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
 

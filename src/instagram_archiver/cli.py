@@ -65,6 +65,11 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
              "is usually the same video already attached to a post",
     )
     parser.add_argument(
+        "--force", action="store_true", default=default,
+        help="ignore the index and fetch everything again, overwriting what is "
+             "already on disk. Use after changing what gets saved",
+    )
+    parser.add_argument(
         "--flatten", action="store_true", default=default,
         help="put an account's files straight in its folder, without a folder "
              "per post; filenames are prefixed with date and post ID",
@@ -113,6 +118,7 @@ FLAG_DEFAULTS = {
     "skip_videos": False,
     "include_reels": False,
     "flatten": False,
+    "force": False,
 }
 
 
@@ -178,7 +184,12 @@ def main(argv: list[str] | None = None) -> int:
         print("=" * 70)
         print("")
 
-    hashes = load_known_hashes(out_dir)
+    # --force starts with an empty memory, so nothing is treated as already had.
+    hashes = set() if args.force else load_known_hashes(out_dir)
+    if args.force:
+        print("--force: ignoring the index, everything will be fetched again.")
+        print("")
+
     summary = Summary()
 
     try:
