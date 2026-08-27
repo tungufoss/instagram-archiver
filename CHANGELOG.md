@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Describing an account without downloading it, and reading what only the
+account itself can see.
+
 ### Changed
 
 - Each account's records now live in `<account>/metadata/` - the index, post
@@ -15,11 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   photographs and nothing else, and two accounts never share a file.
 - Comment rows carry the account whose post they belong to, as well as the
   person who wrote them.
-
-## [0.3.0] - 2026-08-27
-
-Describing an account without downloading it, and reading what only the
-account itself can see.
 
 ### Added
 
@@ -221,7 +219,6 @@ Instagram shows. 15 minutes.
   are written to `skipped-reels.txt`.
 - Stories, highlights and archived posts are not covered.
 
-[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.3.0
+[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.1.0
