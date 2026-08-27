@@ -50,7 +50,7 @@ def test_newest_first(tmp_path):
 
 def test_csv_has_the_columns(tmp_path):
     write_posts(tmp_path, [record()])
-    with (tmp_path / "someaccount" / "posts.csv").open(encoding="utf-8", newline="") as fh:
+    with (tmp_path / "someaccount" / "posts.csv").open(encoding="utf-8-sig", newline="") as fh:
         row = next(csv.DictReader(fh))
     for column in ("post_url", "post_date", "kind", "likes", "comments",
                    "images", "videos", "caption"):

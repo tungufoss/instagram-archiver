@@ -12,6 +12,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from .indexing import CSV_ENCODING
 from .paths import account_dir_name
 
 POSTS_JSON = "posts.json"
@@ -97,7 +98,7 @@ def _write_one(out_dir: Path, records: list[PostRecord]) -> Path:
             if key not in fields:
                 fields.append(key)
 
-    with (out_dir / POSTS_CSV).open("w", newline="", encoding="utf-8") as handle:
+    with (out_dir / POSTS_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, restval="",
                                 extrasaction="ignore")
         writer.writeheader()

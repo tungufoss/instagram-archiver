@@ -63,7 +63,7 @@ def test_legacy_rows_without_new_columns_survive(tmp_path):
     write_index(tmp_path, [record(sha="aa")])
 
     assert load_known_hashes(tmp_path) == {"zz", "aa"}
-    with (tmp_path / "index.csv").open(encoding="utf-8", newline="") as handle:
+    with (tmp_path / "index.csv").open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert "media_type" in rows[0]
     assert rows[0]["media_type"] == ""       # legacy row, column left blank

@@ -46,7 +46,7 @@ def test_timeseries_grows_one_row_per_run(tmp_path):
     write_snapshot(tmp_path, "someaccount", ["a"], WHEN)
     write_snapshot(tmp_path, "someaccount", ["a", "b"], LATER)
 
-    with (tmp_path / TIMESERIES_CSV).open(encoding="utf-8", newline="") as fh:
+    with (tmp_path / TIMESERIES_CSV).open(encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.DictReader(fh))
     assert [r["count"] for r in rows] == ["1", "2"]
     assert rows[1]["joined"] == "b"
@@ -102,7 +102,7 @@ def test_comparison_is_reliable_when_both_were_complete(tmp_path):
 def test_timeseries_records_completeness(tmp_path):
     import csv as _csv
     write_snapshot(tmp_path, "someaccount", ["a"], WHEN, stated=5)
-    with (tmp_path / TIMESERIES_CSV).open(encoding="utf-8", newline="") as fh:
+    with (tmp_path / TIMESERIES_CSV).open(encoding="utf-8-sig", newline="") as fh:
         row = next(_csv.DictReader(fh))
     assert row["stated_count"] == "5"
     assert row["complete"] == "False"

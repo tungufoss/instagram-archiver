@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .indexing import CSV_ENCODING
 from .paths import account_dir_name
 
 SNAPSHOT_DIR = "followers"
@@ -119,7 +120,7 @@ def _append_timeseries(account_dir: Path, taken_at: datetime, count: int,
                        complete: bool) -> None:
     path = account_dir / TIMESERIES_CSV
     exists = path.exists()
-    with path.open("a", newline="", encoding="utf-8") as handle:
+    with path.open("a", newline="", encoding=CSV_ENCODING) as handle:
         writer = csv.DictWriter(handle, fieldnames=TIMESERIES_FIELDS)
         if not exists:
             writer.writeheader()

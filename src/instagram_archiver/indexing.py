@@ -15,6 +15,12 @@ from .media import MediaRecord
 
 PLACEHOLDER_TYPE = "video_skipped"
 
+# Excel and PowerShell 5.1 read a CSV as the legacy Windows codepage
+# unless it starts with a byte-order mark, which turns Icelandic and
+# every other non-ASCII caption into mojibake. utf-8-sig writes the
+# mark; the content is ordinary UTF-8 either way.
+CSV_ENCODING = "utf-8-sig"
+
 INDEX_JSON = "index.json"
 INDEX_CSV = "index.csv"
 COMMENTS_JSON = "comments.json"
@@ -110,7 +116,7 @@ def write_index_rows(out_dir: Path, rows: list[dict]) -> None:
                 fields.append(key)
     if not fields:
         return
-    with (out_dir / INDEX_CSV).open("w", newline="", encoding="utf-8") as handle:
+    with (out_dir / INDEX_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
         writer = csv.DictWriter(
             handle, fieldnames=fields, restval="", extrasaction="ignore"
         )
@@ -161,7 +167,7 @@ def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
             if key not in fields:
                 fields.append(key)
 
-    with (out_dir / INDEX_CSV).open("w", newline="", encoding="utf-8") as handle:
+    with (out_dir / INDEX_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
         writer = csv.DictWriter(
             handle, fieldnames=fields, restval="", extrasaction="ignore"
         )
@@ -212,7 +218,7 @@ def write_comments(out_dir: Path, rows: list[dict]) -> int:
     (out_dir / COMMENTS_JSON).write_text(
         json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    with (out_dir / COMMENTS_CSV).open("w", newline="", encoding="utf-8") as handle:
+    with (out_dir / COMMENTS_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
         writer = csv.DictWriter(handle, fieldnames=COMMENT_FIELDS, restval="",
                                 extrasaction="ignore")
         writer.writeheader()

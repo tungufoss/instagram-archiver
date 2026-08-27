@@ -37,7 +37,13 @@ class _Tee:
 def start(path: Path) -> Path:
     """Begin copying stdout and stderr into `path`. Appends across runs."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    handle = path.open("a", encoding="utf-8", errors="replace")
+
+    # A byte-order mark on the first write, so Windows tools do not read the
+    # file as the legacy codepage and mangle every accented character. Only
+    # once: appending it again mid-file would put stray bytes in the middle.
+    fresh = not path.exists() or path.stat().st_size == 0
+    handle = path.open("a", encoding="utf-8-sig" if fresh else "utf-8",
+                       errors="replace")
     handle.write(
         f"\n{'=' * 70}\n"
         f"run started {datetime.now().isoformat(timespec='seconds')}\n"
