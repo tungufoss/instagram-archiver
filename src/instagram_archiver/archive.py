@@ -8,6 +8,7 @@ import shutil
 import time
 from dataclasses import dataclass, field
 
+from . import placeholder
 from .config import MIN_IMAGE_BYTES, POST_PAUSE
 from .indexing import write_index
 from .media import MediaRecord, fetch, resolve_video
@@ -31,6 +32,10 @@ class Summary:
     @property
     def videos(self) -> int:
         return sum(1 for r in self.records if r.media_type == "video")
+
+    @property
+    def skipped_videos(self) -> int:
+        return sum(1 for r in self.records if r.media_type == "video_skipped")
 
     @property
     def posts_with_media(self) -> int:
@@ -60,6 +65,34 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
     work_dir = out_dir / account_dir / WORK_DIR_NAME
     records: list[MediaRecord] = []
     position = 0
+
+    def file_placeholder():
+        """Mark a video we deliberately did not download."""
+        nonlocal position
+        position += 1
+        filename = f"{prefix}{position:02d}{placeholder.SUFFIX}"
+        dest = folder / filename
+        placeholder.write(dest)
+        if meta.timestamp is not None:
+            try:
+                os.utime(dest, (meta.timestamp, meta.timestamp))
+            except OSError:
+                pass
+        records.append(
+            MediaRecord(
+                post_url=post_url,
+                username=username,
+                post_id=post_id,
+                post_date=post_date,
+                media_type="video_skipped",
+                carousel_index=position,
+                filename=filename,
+                relative_path=str(dest.relative_to(out_dir)).replace("\\", "/"),
+                source_url="",
+                sha256="",
+            )
+        )
+        print(f"  . {account_dir}/{folder.name}/{filename}  (video not saved)")
 
     def file_it(local_path, source_url, media_type, extension, note=""):
         """File one finished item under the next sequence number."""
@@ -115,7 +148,9 @@ def save_post(context, page, sniffer, post_url, out_dir, hashes, want_videos=Tru
 
     try:
         for item in items:
-            if item["kind"] == "image":
+            if item["kind"] == "video_skipped":
+                file_placeholder()
+            elif item["kind"] == "image":
                 file_it(None, item["url"], "image", image_extension(item["url"]))
             else:
                 for path, source_url in resolve_video(context, item["urls"], work_dir):

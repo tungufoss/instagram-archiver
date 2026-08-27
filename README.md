@@ -138,6 +138,24 @@ ig_archiver/
 
 Photos and videos share one numbering sequence per post, in carousel order.
 
+### Placeholders for videos that were not saved
+
+With `--skip-videos`, a carousel slide that held a video would otherwise leave
+a silent gap: the numbering jumps and nothing records that anything was there.
+Instead a placeholder image is written in its place:
+
+```text
+someaccount/
+  2026-08-17_DcJvpIRjwJa/
+    01.jpg
+    02.video-not-saved.png     <- a video was here
+    03.jpg
+```
+
+It is a plain grey PNG, so it sorts into the right position in any photo
+browser and is obviously not a photograph. The index records it with
+`media_type` of `video_skipped`.
+
 ### File dates
 
 Each saved file's modified time is set to **when the post was made**, not when
@@ -206,7 +224,7 @@ Watch progress live with a status line printed after every post:
 | `--out DIR` | where to save media (default `./ig_archiver`) |
 | `--browser-profile DIR` | override the session directory |
 | `--headless` | no window; only useful after `login` has succeeded once |
-| `--skip-videos` | photographs only |
+| `--skip-videos` | photographs only; videos leave a placeholder image |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
 | `--max-posts N` | (profile mode) stop after N posts |

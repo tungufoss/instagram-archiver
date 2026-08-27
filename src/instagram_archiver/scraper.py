@@ -188,6 +188,10 @@ def collect_post_media(page, sniffer, post_url, want_videos=True,
 
         if not want_videos:
             sniffer.clear()
+            # Note that a video was here, so the gap is visible in the output
+            # instead of the numbering silently skipping a slide.
+            if count_post_videos(page) > 0:
+                items.append({"kind": "video_skipped"})
             return
 
         # Counts only the post's own videos: a suggested reel below the post

@@ -26,6 +26,51 @@ not bypass private-account restrictions, and it never reads your password.
 """
 
 
+def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
+    """Options accepted both before and after the subcommand.
+
+    argparse normally requires top-level flags to precede the subcommand, so
+    `... profile URL --skip-videos` fails with an unhelpful usage error. These
+    are registered in both places instead, because being picky about flag
+    order is a trap, not a feature.
+
+    The subcommand copies must use `default=SUPPRESS`: a subparser parses into
+    a fresh namespace and then copies every attribute onto the parent one, so
+    an ordinary default there would silently overwrite a value the user gave
+    *before* the subcommand. SUPPRESS leaves the attribute unset instead, and
+    nothing gets clobbered.
+    """
+    parser.add_argument(
+        "--out", type=Path, default=default,
+        help="where to save media (default: ./ig_archiver in the current "
+             "directory). Each account gets its own subfolder there.",
+    )
+    parser.add_argument(
+        "--browser-profile", type=Path, default=default,
+        help="persistent browser profile directory "
+             "(default: a per-user application data directory)",
+    )
+    parser.add_argument(
+        "--headless", action="store_true", default=default,
+        help="run without a window (only after `login` has succeeded once)",
+    )
+    parser.add_argument(
+        "--skip-videos", action="store_true", default=default,
+        help="save photographs only. Recommended: video downloading is "
+             "unreliable, see the README",
+    )
+    parser.add_argument(
+        "--include-reels", action="store_true", default=default,
+        help="also archive reels listed on a profile. Off by default: a reel "
+             "is usually the same video already attached to a post",
+    )
+    parser.add_argument(
+        "--flatten", action="store_true", default=default,
+        help="put an account's files straight in its folder, without a folder "
+             "per post; filenames are prefixed with date and post ID",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="instagram-archiver",
@@ -34,40 +79,16 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument(
-        "--out", type=Path, default=None,
-        help="where to save media (default: ./ig_archiver in the current "
-             "directory). Each account gets its own subfolder there.",
-    )
-    parser.add_argument(
-        "--browser-profile", type=Path, default=None,
-        help="persistent browser profile directory "
-             "(default: a per-user application data directory)",
-    )
-    parser.add_argument(
-        "--headless", action="store_true",
-        help="run without a window (only after `login` has succeeded once)",
-    )
-    parser.add_argument(
-        "--skip-videos", action="store_true", help="save photographs only",
-    )
-    parser.add_argument(
-        "--include-reels", action="store_true",
-        help="also archive reels listed on a profile. Off by default: a reel is "
-             "usually the same video already attached to a post",
-    )
-    parser.add_argument(
-        "--flatten", action="store_true",
-        help="put an account's files straight in its folder, without a folder "
-             "per post; filenames are prefixed with date and post ID",
-    )
+    _common_options(parser, default=None)
 
     sub = parser.add_subparsers(dest="command", required=True)
 
     login = sub.add_parser("login", help="open a window and wait for manual login")
+    _common_options(login, default=argparse.SUPPRESS)
     login.set_defaults(url=None, max_posts=None)
 
     profile = sub.add_parser("profile", help="archive every visible post on a profile")
+    _common_options(profile, default=argparse.SUPPRESS)
     profile.add_argument("url", help="profile URL")
     profile.add_argument(
         "--max-posts", type=int, default=None,
@@ -75,10 +96,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     post = sub.add_parser("post", help="archive one specific post URL")
+    _common_options(post, default=argparse.SUPPRESS)
     post.add_argument("url", help="post or reel URL")
     post.set_defaults(max_posts=None)
 
     return parser
+
+
+# A flag registered both before and after the subcommand parses twice, and the
+# subcommand pass must not reset a value given before it. None means "not
+# supplied here"; these are the values to fall back to when it appears nowhere.
+FLAG_DEFAULTS = {
+    "out": None,
+    "browser_profile": None,
+    "headless": False,
+    "skip_videos": False,
+    "include_reels": False,
+    "flatten": False,
+}
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse and normalise, so flag position never changes the result."""
+    args = build_parser().parse_args(argv)
+    for name, fallback in FLAG_DEFAULTS.items():
+        if getattr(args, name, None) is None:
+            setattr(args, name, fallback)
+    return args
 
 
 def print_summary(summary: Summary, out_dir: Path) -> None:
@@ -88,6 +132,9 @@ def print_summary(summary: Summary, out_dir: Path) -> None:
     print(f"Posts yielding media : {summary.posts_with_media}")
     print(f"Images downloaded    : {summary.images}")
     print(f"Videos downloaded    : {summary.videos}")
+    if summary.skipped_videos:
+        print(f"Videos not saved     : {summary.skipped_videos} "
+              f"(placeholder images written)")
     print(f"Saved under          : {out_dir}")
     if summary.records:
         print("Index files          : index.csv, index.json")
@@ -112,7 +159,7 @@ def _prepare_output() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     _prepare_output()
-    args = build_parser().parse_args(argv)
+    args = parse_args(argv)
 
     out_dir = (args.out or default_output_dir()).resolve()
     profile_dir = (args.browser_profile or default_browser_profile_dir()).resolve()

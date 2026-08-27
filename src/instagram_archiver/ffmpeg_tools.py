@@ -89,3 +89,40 @@ def warn_missing_once() -> None:
     print("        a video's picture and sound as two separate files; without")
     print("        ffmpeg only the larger one is kept, so that video may end up")
     print("        silent. Install ffmpeg and re-run to fix those.")
+
+
+# --- identifying which file is actually the video we are looking at --------
+
+FINGERPRINT_SIDE = 16
+FINGERPRINT_SIZE = FINGERPRINT_SIDE * FINGERPRINT_SIDE
+
+
+def fingerprint(path: Path) -> bytes | None:
+    """A tiny greyscale thumbnail of the first frame, as raw bytes.
+
+    Works for both a still image and a video, so a video's opening frame can
+    be compared against the poster image the page showed for it.
+    """
+    if not FFMPEG:
+        return None
+    try:
+        proc = subprocess.run(
+            [
+                FFMPEG, "-v", "error", "-i", str(path),
+                "-vf", f"scale={FINGERPRINT_SIDE}:{FINGERPRINT_SIDE},format=gray",
+                "-frames:v", "1", "-f", "rawvideo", "-",
+            ],
+            capture_output=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    data = proc.stdout
+    return data if len(data) == FINGERPRINT_SIZE else None
+
+
+def distance(a: bytes | None, b: bytes | None) -> float | None:
+    """Mean absolute difference between two fingerprints, 0 (same) to 255."""
+    if not a or not b or len(a) != len(b):
+        return None
+    return sum(abs(x - y) for x, y in zip(a, b, strict=False)) / len(a)

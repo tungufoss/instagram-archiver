@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Placeholder images for videos that were not saved, so `--skip-videos` leaves
+  a visible marker in the right carousel position instead of a silent gap.
 - A progress line after each post, with counts, elapsed time and an estimate.
 - `--include-reels`; profile mode now skips reels by default, since a reel is
   usually the same video already attached to a post.
@@ -33,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is now written after every post.
 - Output is line-buffered, so piping a run to a log file shows progress as it
   happens instead of nothing for minutes.
+- Flags such as `--skip-videos` were rejected when written after the
+  subcommand, with only an argparse usage error to explain it. They are now
+  accepted in either position.
 - Only the renditions worth having are downloaded, sized with a HEAD request
   first, rather than fetching every candidate and discarding most.
 
