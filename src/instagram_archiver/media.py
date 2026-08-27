@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import ffmpeg_tools
-from .config import AUDIO_SIZE_RATIO, MIN_VIDEO_BYTES
+from .config import AUDIO_SIZE_RATIO, MIN_MEDIA_BYTES, MIN_VIDEO_BYTES
 
 
 @dataclass
@@ -88,6 +88,26 @@ def pick_tracks(candidates: list[Candidate]) -> tuple[Candidate | None, Candidat
     return best_video, max(audio_only, key=lambda c: c.size)
 
 
+def looks_like_media(data: bytes) -> bool:
+    """True when these bytes begin like a real image or video file.
+
+    Size is a poor test. A perfectly good four-second reel came back at
+    44 KB and was discarded by a 50 KB floor, losing the post entirely and
+    saying nothing. What actually distinguishes a file from an error page or
+    a placeholder is how it starts.
+    """
+    if len(data) < MIN_MEDIA_BYTES:
+        return False
+    head = data[:32]
+    return (
+        head[:3] == b"\xff\xd8\xff"                 # jpeg
+        or head[:8] == b"\x89PNG\r\n\x1a\n"          # png
+        or head[:4] == b"RIFF"                       # webp
+        or head[4:8] == b"ftyp"                      # mp4 and friends
+        or head[:4] == b"\x1a\x45\xdf\xa3"            # matroska / webm
+    )
+
+
 def fetch(context, url: str, dest: Path, min_bytes: int) -> str | None:
     """Download through the browser context so the logged-in session applies.
 
@@ -104,7 +124,8 @@ def fetch(context, url: str, dest: Path, min_bytes: int) -> str | None:
         return None
 
     data = response.body()
-    if len(data) < min_bytes:                      # placeholder / icon / empty
+    if not looks_like_media(data):
+        print(f"  ! {len(data)} bytes from {url[:60]} do not look like media")
         return None
 
     dest.parent.mkdir(parents=True, exist_ok=True)

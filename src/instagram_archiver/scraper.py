@@ -16,6 +16,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from . import comments as comment_reader
 from . import views as views_reader
 from .config import (
+    FIRST_SLIDE_TIMEOUT,
     MAX_SLIDES,
     SCROLL_PAUSE,
     SCROLL_STAGNANT_LIMIT,
@@ -199,7 +200,22 @@ def collect_post_media(page, post_url, want_videos=True,
         print(f"    ! slide {position}: the page did not name its video, skipping")
         items.append({"kind": "video_skipped"})
 
+    # An element existing is not the same as it being laid out. A video in
+    # particular can take several seconds to get a box, and a post whose only
+    # slide is a video then reads as empty and is dropped from the archive
+    # without a word. Wait for something measurable before believing there is
+    # nothing here.
+    deadline = time.time() + FIRST_SLIDE_TIMEOUT
+    while time.time() < deadline:
+        if current_slide(page) is not None:
+            break
+        time.sleep(0.5)
+
     harvest()
+    if not items:
+        print(f"  ! {post_url} rendered nothing measurable after "
+              f"{FIRST_SLIDE_TIMEOUT:.0f}s")
+
     for _ in range(max_slides):
         button = next_button(page)
         if button is None:

@@ -9,9 +9,16 @@ from __future__ import annotations
 # Hosts that serve Instagram media. Used to ignore unrelated requests.
 CDN_HOSTS = ("cdninstagram", "fbcdn")
 
-# Anything smaller is an icon, a placeholder or an empty range response.
-MIN_IMAGE_BYTES = 5_000
-MIN_VIDEO_BYTES = 50_000
+# A response has to be at least this big to be a file rather than an error
+# page, but size alone decides nothing: what a download is gets settled by its
+# leading bytes. See media.looks_like_media - a real 44 KB reel was once
+# thrown away by a 50 KB floor, which lost the post and said nothing.
+MIN_MEDIA_BYTES = 1_024
+
+# Kept for the video candidate sizing, which compares renditions rather than
+# judging whether a download is real.
+MIN_IMAGE_BYTES = MIN_MEDIA_BYTES
+MIN_VIDEO_BYTES = MIN_MEDIA_BYTES
 
 # A separate audio track is a small fraction of the video it belongs to.
 # Anything larger than this share of the biggest candidate is just a
@@ -26,6 +33,10 @@ SLIDE_PAUSE = (1.2, 2.0)      # between carousel slides
 POST_PAUSE = (3.0, 6.0)       # between posts
 SCROLL_PAUSE = (1.5, 2.5)     # between profile scrolls
 SCAN_PAUSE = (1.0, 2.0)       # between posts when only reading metadata
+
+# How long to wait for the first slide to acquire a size. A video can take
+# several seconds, and treating that as an empty post loses it silently.
+FIRST_SLIDE_TIMEOUT = 15.0
 
 # Seconds to let a playing video actually request its file.
 VIDEO_SETTLE = 3.0

@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-27
+
+Describing an account without downloading it, and reading what only the
+account itself can see.
+
+### Added
+
+- `scan` records what a profile posted without downloading anything: date and
+  exact timestamp, post or reel, photo and video counts, likes, comment count,
+  play count and caption. One row per post in the account's `posts.csv` /
+  `posts.json`. About 3 seconds a post, against 30 for archiving.
+- `followers` records who follows an account and what changed since the last
+  snapshot, with a dated snapshot and a `followers.csv` timeseries. Its own
+  command, never part of archiving.
+- `--comments` records comments - username, time and text - in their own
+  files. Off by default.
+- Captions, like counts, comment counts and reel play counts.
+
+### Fixed
+
+- **A four-second reel was being discarded and the post lost.** Downloads were
+  judged by byte count, and a genuine 44 KB video fell under a 50 KB floor -
+  silently, so the post simply never appeared. A download is now judged by its
+  leading bytes, and anything rejected says so.
+- CSV and log files carry a byte-order mark, so Excel and PowerShell read
+  Icelandic and other non-ASCII text correctly instead of as mojibake.
+- Two partial follower snapshots are never compared: a name missing from one
+  run is usually a name that run did not see, not somebody who left.
+
+### Measured, not assumed
+
+Reading an account as a viewer and again while logged in as it:
+
+- **Follower names.** As a viewer the dialog is virtualised and five different
+  strategies each returned 432-459 of 603. As the account, all 606.
+- **Like counts.** Four older posts reported 3 likes to a viewer and 41, 54,
+  34 and 28 to the account itself; four recent posts agreed either way. A
+  viewer's like count is a lower bound.
+- **Play counts.** Absent from every post's page data for everyone, but drawn
+  on the reels tab, which the account can see. Read from there.
+
+The README carries the full table.
+
+
 ### Added
 
 - `scan`, which records what a profile posted without downloading anything:
@@ -168,6 +212,7 @@ Instagram shows. 15 minutes.
   are written to `skipped-reels.txt`.
 - Stories, highlights and archived posts are not covered.
 
-[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.1.0
