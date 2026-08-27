@@ -6,6 +6,12 @@ updates:
       interval: "monthly"
     open-pull-requests-limit: 5
     labels: ["dependencies"]
+    # Our constraints are lower bounds (">=1.44"), so pip already installs the
+    # newest compatible release. Raising the floor changes nothing about what
+    # gets used and only drops support for people on older versions, so only
+    # widen a constraint when something actually requires it. Security
+    # advisories still come through regardless of this setting.
+    versioning-strategy: increase-if-necessary
 
   - package-ecosystem: "github-actions"
     directory: "/"
