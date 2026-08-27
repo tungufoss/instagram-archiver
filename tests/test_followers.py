@@ -56,12 +56,53 @@ def test_timeseries_grows_one_row_per_run(tmp_path):
 def test_previous_snapshot_reads_the_latest(tmp_path):
     write_snapshot(tmp_path, "someaccount", ["a"], WHEN)
     write_snapshot(tmp_path, "someaccount", ["a", "b"], LATER)
-    assert previous_snapshot(tmp_path) == ["a", "b"]
+    assert previous_snapshot(tmp_path)[0] == ["a", "b"]
 
 
 def test_previous_snapshot_when_there_is_none(tmp_path):
-    assert previous_snapshot(tmp_path) == []
+    assert previous_snapshot(tmp_path)[0] == []
 
 
 def test_compare_is_order_insensitive():
     assert compare(["b", "a"], ["a", "b"]).quiet
+
+
+# --- partial snapshots must not invent departures -------------------------
+
+
+def test_a_partial_snapshot_is_marked_incomplete(tmp_path):
+    import json as _json
+    path, _ = write_snapshot(tmp_path, "someaccount", ["a", "b"], WHEN, stated=10)
+    data = _json.loads(path.read_text(encoding="utf-8"))
+    assert data["complete"] is False
+    assert data["stated_count"] == 10
+
+
+def test_a_full_snapshot_is_marked_complete(tmp_path):
+    import json as _json
+    path, _ = write_snapshot(tmp_path, "someaccount", ["a", "b"], WHEN, stated=2)
+    assert _json.loads(path.read_text(encoding="utf-8"))["complete"] is True
+
+
+def test_comparison_is_unreliable_when_a_snapshot_was_partial(tmp_path):
+    """453 of 603 one run and 456 the next would invent dozens of departures."""
+    write_snapshot(tmp_path, "someaccount", ["a", "b", "c"], WHEN, stated=10)
+    _, change = write_snapshot(tmp_path, "someaccount", ["a", "b"], LATER,
+                               stated=10)
+    assert change.reliable is False
+
+
+def test_comparison_is_reliable_when_both_were_complete(tmp_path):
+    write_snapshot(tmp_path, "someaccount", ["a", "b"], WHEN, stated=2)
+    _, change = write_snapshot(tmp_path, "someaccount", ["a"], LATER, stated=1)
+    assert change.reliable is True
+    assert change.left == ["b"]
+
+
+def test_timeseries_records_completeness(tmp_path):
+    import csv as _csv
+    write_snapshot(tmp_path, "someaccount", ["a"], WHEN, stated=5)
+    with (tmp_path / TIMESERIES_CSV).open(encoding="utf-8", newline="") as fh:
+        row = next(_csv.DictReader(fh))
+    assert row["stated_count"] == "5"
+    assert row["complete"] == "False"

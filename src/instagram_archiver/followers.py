@@ -22,7 +22,8 @@ from .paths import account_dir_name
 
 SNAPSHOT_DIR = "followers"
 TIMESERIES_CSV = "followers.csv"
-TIMESERIES_FIELDS = ["taken_at", "count", "joined", "left"]
+TIMESERIES_FIELDS = ["taken_at", "count", "stated_count", "complete",
+                     "joined", "left"]
 
 
 @dataclass
@@ -31,6 +32,7 @@ class Change:
 
     joined: list[str]
     left: list[str]
+    reliable: bool = True
 
     @property
     def quiet(self) -> bool:
@@ -46,33 +48,46 @@ def snapshot_path(account_dir: Path, taken_at: datetime) -> Path:
     return account_dir / SNAPSHOT_DIR / f"{taken_at:%Y-%m-%d_%H%M}.json"
 
 
-def previous_snapshot(account_dir: Path) -> list[str]:
-    """Usernames from the most recent snapshot, or an empty list."""
+def previous_snapshot(account_dir: Path) -> tuple[list[str], bool]:
+    """Usernames from the most recent snapshot, and whether it was complete."""
     folder = account_dir / SNAPSHOT_DIR
     if not folder.is_dir():
-        return []
+        return [], True
     files = sorted(folder.glob("*.json"))
     if not files:
-        return []
+        return [], True
     try:
         data = json.loads(files[-1].read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return []
-    usernames = data.get("followers") if isinstance(data, dict) else data
-    return usernames if isinstance(usernames, list) else []
+        return [], True
+    if not isinstance(data, dict):
+        return (data if isinstance(data, list) else []), True
+    usernames = data.get("followers")
+    return (usernames if isinstance(usernames, list) else [],
+            bool(data.get("complete", True)))
 
 
-def compare(before: list[str], after: list[str]) -> Change:
-    """Who is new, and who has gone."""
+def compare(before: list[str], after: list[str], reliable: bool = True) -> Change:
+    """Who is new, and who has gone.
+
+    `reliable` is False when either snapshot is known to be partial. The
+    comparison is still made, but "left" then means "not seen this time",
+    which is a very different claim from "stopped following".
+    """
     was, now = set(before), set(after)
-    return Change(joined=sorted(now - was), left=sorted(was - now))
+    return Change(joined=sorted(now - was), left=sorted(was - now),
+                  reliable=reliable)
 
 
 def write_snapshot(account_dir: Path, username: str, followers: list[str],
-                   taken_at: datetime | None = None) -> tuple[Path, Change]:
+                   taken_at: datetime | None = None,
+                   stated: int | None = None) -> tuple[Path, Change]:
     """Record this snapshot and report what changed since the last one."""
     taken_at = taken_at or datetime.now(timezone.utc)
-    change = compare(previous_snapshot(account_dir), followers)
+    complete = stated is None or len(followers) >= stated
+
+    before, before_complete = previous_snapshot(account_dir)
+    change = compare(before, followers, reliable=complete and before_complete)
 
     path = snapshot_path(account_dir, taken_at)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,6 +97,10 @@ def write_snapshot(account_dir: Path, username: str, followers: list[str],
                 "account": username,
                 "taken_at": taken_at.isoformat(timespec="seconds"),
                 "count": len(followers),
+                # What the profile claimed, and whether we matched it. A
+                # partial snapshot must not be read as the full membership.
+                "stated_count": stated,
+                "complete": complete,
                 "followers": sorted(followers),
             },
             indent=2,
@@ -90,12 +109,14 @@ def write_snapshot(account_dir: Path, username: str, followers: list[str],
         encoding="utf-8",
     )
 
-    _append_timeseries(account_dir, taken_at, len(followers), change)
+    _append_timeseries(account_dir, taken_at, len(followers), change, stated,
+                       complete)
     return path, change
 
 
 def _append_timeseries(account_dir: Path, taken_at: datetime, count: int,
-                       change: Change) -> None:
+                       change: Change, stated: int | None,
+                       complete: bool) -> None:
     path = account_dir / TIMESERIES_CSV
     exists = path.exists()
     with path.open("a", newline="", encoding="utf-8") as handle:
@@ -105,6 +126,8 @@ def _append_timeseries(account_dir: Path, taken_at: datetime, count: int,
         writer.writerow({
             "taken_at": taken_at.isoformat(timespec="seconds"),
             "count": count,
+            "stated_count": stated if stated is not None else "",
+            "complete": complete,
             "joined": " ".join(change.joined),
             "left": " ".join(change.left),
         })

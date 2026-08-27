@@ -335,7 +335,9 @@ def main(argv: list[str] | None = None) -> int:
                     name = username_from_profile_url(args.url) or "unknown-account"
                     found, stated = read_followers(page, args.url)
                     account = follower_log.account_dir_for(out_dir, name)
-                    path, change = follower_log.write_snapshot(account, name, found)
+                    path, change = follower_log.write_snapshot(
+                        account, name, found, stated=stated
+                    )
                     print()
                     print("=" * 50)
                     print(f"Followers    : {len(found)}"
@@ -351,8 +353,20 @@ def main(argv: list[str] | None = None) -> int:
                         rest = f" and {len(names) - 8} more" if len(names) > 8 else ""
                         print(f"{label:13}: {len(names)} - {head}{rest}")
 
-                    show("Joined", change.joined)
-                    show("Left", change.left)
+                    if change.reliable:
+                        show("Joined", change.joined)
+                        show("Left", change.left)
+                    else:
+                        # Comparing partial lists invents departures: a name is
+                        # missing because it was not seen, not because it went.
+                        print("Change       : not compared - one or both "
+                              "snapshots are partial,")
+                        print("               so a name missing from this run "
+                              "may simply")
+                        print("               not have been seen. The count "
+                              "trend is still")
+                        print("               usable; the names are a large "
+                              "sample.")
                     if change.quiet:
                         print("Change       : none since the last snapshot")
                     print(f"Snapshot     : {path}")

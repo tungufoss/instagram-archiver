@@ -235,6 +235,53 @@ A file's number is its position in the post, not a running count of what a
 particular run downloaded. That way a photo keeps the same name whether or not
 videos were saved alongside it.
 
+## Two viewpoints
+
+What this tool can record depends on whose eyes it is looking through.
+
+**As a viewer** — an account you follow, or a public one. This is the case
+everything here has been built and tested against.
+
+**As the account itself** — logged in as it, in its own browser profile.
+Instagram shows an account things about itself that it shows nobody else.
+
+| | As a viewer | As the account |
+| --- | --- | --- |
+| Photographs, at full resolution | yes | yes |
+| Videos, correctly attributed | yes | yes |
+| Captions, dates, exact timestamps | yes | yes |
+| Like counts, comment counts | yes | yes |
+| Post or reel, photo and video counts | yes | yes |
+| Comments themselves | only those the page loads | probably the same |
+| View counts | **no** — Instagram returns null | expected, unverified |
+| Follower list | **a large sample, not all** | expected, unverified |
+
+The two "expected, unverified" rows are honest guesses, not findings. Nothing
+here has been run while logged in as the account it was reading, so whether
+Instagram then fills in `view_count` or serves the whole follower list is
+untested. To try it, give that account its own browser profile:
+
+```bash
+instagram-archiver --browser-profile ./that-account login
+instagram-archiver --browser-profile ./that-account followers https://www.instagram.com/thataccount/
+```
+
+### Why the follower list is a sample
+
+The dialog is virtualised: it renders a window of rows and discards the rest.
+Five strategies — jumping to the bottom, small overlapping steps, a bridge
+check, loading fully then walking back, and listening to network responses —
+each returned between 432 and 459 of one account's 603.
+
+So a snapshot is recorded with `complete: false` and the count it fell short
+of, and **two partial snapshots are not compared**. Comparing them would
+invent departures: a name missing from one run is usually a name that run did
+not see, not somebody who left. The count trend stays useful; the names are a
+large sample of the membership.
+
+When a snapshot does match the stated count, the comparison runs normally and
+`joined` / `left` mean what they say.
+
 ## How long does it take?
 
 Measured against a public, carousel-heavy account: **166 seconds for 5 posts —
