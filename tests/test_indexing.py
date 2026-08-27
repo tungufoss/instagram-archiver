@@ -132,3 +132,98 @@ def test_placeholders_at_other_positions_survive(tmp_path):
     rows = json.loads((tmp_path / "index.json").read_text())
     kinds = {r["carousel_index"]: r["media_type"] for r in rows}
     assert kinds == {4: "video_skipped", 6: "video", 8: "video_skipped"}
+
+
+def test_posts_missing_videos_lists_only_placeholder_posts(tmp_path):
+    from instagram_archiver.indexing import posts_missing_videos
+
+    def rec(post_id, index, media_type, sha):
+        return MediaRecord(
+            post_url=f"https://www.instagram.com/p/{post_id}/",
+            username="someaccount", post_id=post_id, post_date="2026-06-08",
+            media_type=media_type, carousel_index=index,
+            filename=f"{index:02d}.x", relative_path=f"a/{post_id}/{index:02d}.x",
+            source_url="", sha256=sha,
+        )
+
+    write_index(tmp_path, [
+        rec("P1", 1, "image", "a"),
+        rec("P1", 2, "video_skipped", ""),
+        rec("P2", 1, "image", "b"),                 # nothing missing here
+        rec("P3", 1, "video_skipped", ""),
+    ])
+
+    urls = posts_missing_videos(tmp_path)
+    assert urls == [
+        "https://www.instagram.com/p/P1/",
+        "https://www.instagram.com/p/P3/",
+    ]
+
+
+def test_posts_missing_videos_deduplicates(tmp_path):
+    from instagram_archiver.indexing import posts_missing_videos
+
+    def ph(index):
+        return MediaRecord(
+            post_url="https://www.instagram.com/p/P1/", username="someaccount",
+            post_id="P1", post_date="2026-06-08", media_type="video_skipped",
+            carousel_index=index, filename=f"{index:02d}.png",
+            relative_path=f"a/P1/{index:02d}.png", source_url="", sha256="",
+        )
+
+    write_index(tmp_path, [ph(4), ph(6), ph(8)])
+    assert posts_missing_videos(tmp_path) == ["https://www.instagram.com/p/P1/"]
+
+
+def test_posts_missing_videos_on_empty_archive(tmp_path):
+    from instagram_archiver.indexing import posts_missing_videos
+    assert posts_missing_videos(tmp_path) == []
+
+
+# --- resuming --------------------------------------------------------------
+
+
+def rows_for(post_id, kinds):
+    """kinds like ['image', 'video_skipped'] -> records for one post."""
+    return [
+        MediaRecord(
+            post_url=f"https://www.instagram.com/p/{post_id}/",
+            username="someaccount", post_id=post_id, post_date="2026-06-08",
+            media_type=kind, carousel_index=i,
+            filename=f"{i:02d}.x", relative_path=f"a/{post_id}/{i:02d}.x",
+            source_url="", sha256=f"{post_id}{i}",
+        )
+        for i, kind in enumerate(kinds, start=1)
+    ]
+
+
+def test_completed_posts_skips_finished_ones(tmp_path):
+    from instagram_archiver.indexing import completed_post_ids
+
+    write_index(tmp_path, rows_for("DONE", ["image", "image"]))
+    write_index(tmp_path, rows_for("PART", ["image", "video_skipped"]))
+
+    assert completed_post_ids(tmp_path, want_videos=True) == {"DONE"}
+
+
+def test_a_placeholder_does_not_block_a_photos_only_run(tmp_path):
+    """Without --videos there is nothing left to fetch for that post."""
+    from instagram_archiver.indexing import completed_post_ids
+
+    write_index(tmp_path, rows_for("PART", ["image", "video_skipped"]))
+    assert completed_post_ids(tmp_path, want_videos=False) == {"PART"}
+    assert completed_post_ids(tmp_path, want_videos=True) == set()
+
+
+def test_unknown_posts_are_never_complete(tmp_path):
+    from instagram_archiver.indexing import completed_post_ids
+
+    write_index(tmp_path, rows_for("SEEN", ["image"]))
+    done = completed_post_ids(tmp_path, want_videos=True)
+    assert "SEEN" in done
+    assert "NEVERSEEN" not in done
+
+
+def test_empty_archive_has_nothing_complete(tmp_path):
+    from instagram_archiver.indexing import completed_post_ids
+    assert completed_post_ids(tmp_path, want_videos=True) == set()

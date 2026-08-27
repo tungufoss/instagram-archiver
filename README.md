@@ -102,6 +102,12 @@ instagram-archiver post https://www.instagram.com/p/ABC123/
 
 Works with `/p/` and `/reel/` URLs.
 
+### 4. Or just the videos a photos-only run skipped
+
+```bash
+instagram-archiver fill-videos
+```
+
 ## Output
 
 Files land in `./ig_archiver/` in whatever directory you run from, one
@@ -184,7 +190,26 @@ anything already recorded, appends the new rows and rewrites both files.
 | `sha256` | hash of the bytes |
 
 Re-running is safe: hashes are loaded from the index first, so files already on
-disk are never downloaded twice. `--force` ignores the index and fetches
+disk are never downloaded twice.
+
+### Picking up where you left off
+
+`--resume` skips posts the index shows are already complete, instead of
+visiting each one to discover there is nothing to do. On a finished archive of
+39 posts that is 29 seconds rather than 14 minutes. A post counts as complete
+when the index holds rows for it and, if you asked for videos, none of them is
+still a placeholder.
+
+`fill-videos` goes further when all you want is the videos an earlier run
+skipped. It reads the index, visits only the posts holding a placeholder, and
+ignores the profile entirely:
+
+```bash
+instagram-archiver fill-videos
+```
+
+Filling in 15 videos across 6 posts took 131 seconds, against about 14 minutes
+to walk the whole profile. `--force` ignores the index and fetches
 everything again, which is what you want after changing *what* gets saved.
 
 A file's number is its position in the post, not a running count of what a
@@ -232,6 +257,7 @@ Watch progress live with a status line printed after every post:
 | `--headless` | no window; only useful after `login` has succeeded once |
 | `--videos` | also download videos (off by default) |
 | `--include-reels` | also archive reels listed on a profile (off by default) |
+| `--resume` | skip posts the index shows are complete |
 | `--force` | ignore the index and fetch everything again, overwriting what is there |
 | `--flatten` | no per-post folders; date and post ID go in the filename |
 | `--max-posts N` | (profile mode) stop after N posts |

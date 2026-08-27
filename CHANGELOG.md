@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `fill-videos`, which reads the index and visits only the posts holding a
+  placeholder. Filling 15 videos across 6 posts took 131 seconds against about
+  14 minutes to walk the whole profile.
+- `--resume`, which skips posts the index shows are already complete rather
+  than visiting each one to find out. A finished 39-post archive re-runs in 29
+  seconds instead of 14 minutes.
+
 ### Fixed
 
 - A reel is now read from its `/p/` URL. Instagram serves `/reel/<code>/` as a

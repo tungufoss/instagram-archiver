@@ -4,13 +4,27 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 from . import __version__, logfile, relayout
-from .archive import Summary, archive_post, archive_profile, prune_empty_dirs
-from .indexing import load_archived_files, load_known_hashes, write_index
+from .archive import (
+    Summary,
+    archive_post,
+    archive_profile,
+    prune_empty_dirs,
+    save_post,
+)
+from .config import POST_PAUSE
+from .indexing import (
+    load_archived_files,
+    load_known_hashes,
+    posts_missing_videos,
+    write_index,
+)
 from .paths import default_browser_profile_dir, default_output_dir
-from .scraper import PrivateProfile
+from .progress import line as progress_line
+from .scraper import PrivateProfile, nap
 from .session import NotLoggedIn, browser_session, ensure_login
 from .urls import normalise_post_url
 
@@ -76,6 +90,11 @@ def _common_options(parser: argparse.ArgumentParser, default=None) -> None:
              "media). Pass '-' to write no log",
     )
     parser.add_argument(
+        "--resume", action="store_true", default=default,
+        help="skip posts the index shows are already complete, instead of "
+             "visiting each one to find out",
+    )
+    parser.add_argument(
         "--force", action="store_true", default=default,
         help="ignore the index and fetch everything again, overwriting what is "
              "already on disk. Use after changing what gets saved",
@@ -128,6 +147,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     rearrange.set_defaults(url=None, max_posts=None)
 
+    fill = sub.add_parser(
+        "fill-videos",
+        help="fetch only the videos an earlier run skipped, using the index",
+    )
+    _common_options(fill, default=argparse.SUPPRESS)
+    fill.set_defaults(url=None, max_posts=None)
+
     post = sub.add_parser("post", help="archive one specific post URL")
     _common_options(post, default=argparse.SUPPRESS)
     post.add_argument("url", help="post or reel URL")
@@ -149,6 +175,7 @@ FLAG_DEFAULTS = {
     "flatten": False,
     "nested": False,
     "force": False,
+    "resume": False,
     "log": None,
 }
 
@@ -259,7 +286,29 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
 
             try:
-                if args.command == "post":
+                if args.command == "fill-videos":
+                    targets = posts_missing_videos(out_dir)
+                    if not targets:
+                        print("Nothing to fill in: no placeholders in the index.")
+                        return 0
+                    print(f"{len(targets)} post(s) hold a placeholder where a "
+                          f"video should be.")
+                    started = time.time()
+                    for i, post_url in enumerate(targets, start=1):
+                        print(f"[{i}/{len(targets)}]", end=" ")
+                        records = save_post(
+                            context, page, post_url, out_dir, hashes,
+                            True, None, args.flatten, archived,
+                        )
+                        summary.records += records
+                        summary.posts_visited += 1
+                        write_index(out_dir, records)
+                        print(progress_line(i, len(targets),
+                                            len(summary.records), started),
+                              flush=True)
+                        if i < len(targets):
+                            nap(POST_PAUSE)
+                elif args.command == "post":
                     post_url = normalise_post_url(args.url)
                     if not post_url:
                         print(f"Not an Instagram post/reel URL: {args.url}", file=sys.stderr)
@@ -272,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
                     summary = archive_profile(
                         context, page, args.url, out_dir, hashes,
                         want_videos, args.max_posts, args.flatten,
-                        args.include_reels, archived,
+                        args.include_reels, archived, args.resume,
                     )
             finally:
                 # archive_* writes after each post; this catches anything that

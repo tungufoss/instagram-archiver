@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import placeholder
 from .config import MIN_IMAGE_BYTES, POST_PAUSE
-from .indexing import write_index
+from .indexing import completed_post_ids, write_index
 from .media import MediaRecord, fetch, resolve_video
 from .paths import account_dir_name
 from .progress import line as progress_line
@@ -289,7 +289,7 @@ def archive_post(context, page, post_url, out_dir, hashes, want_videos=True,
 def archive_profile(
     context, page, profile_url, out_dir, hashes,
     want_videos=True, max_posts=None, flatten=False, include_reels=False,
-    archived=None,
+    archived=None, resume=False,
 ):
     summary = Summary()
     skipped_reels: list[str] = []
@@ -310,6 +310,17 @@ def archive_profile(
         ]
         note.write_text("\n".join(lines), encoding="utf-8")
         print(f"  listed them in {note.name}")
+    if resume:
+        done = completed_post_ids(out_dir, want_videos)
+        before = len(targets)
+        targets = [u for u in targets if post_id_from(u) not in done]
+        skipped = before - len(targets)
+        if skipped:
+            print(f"  resuming: {skipped} post(s) already complete, "
+                  f"{len(targets)} to do")
+        if not targets:
+            print("  nothing left to fetch.")
+
     started = time.time()
     # The profile URL names the account, which beats guessing from each page.
     hint = username_from_profile_url(profile_url)
