@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .indexing import CSV_ENCODING
-from .paths import account_dir_name
+from .paths import metadata_dir
 
 POSTS_JSON = "posts.json"
 POSTS_CSV = "posts.csv"
@@ -42,11 +42,8 @@ class PostRecord:
 
 
 def account_dir(out_dir: Path, username: str) -> Path:
-    """Post metadata lives with that account's media, not at the archive root.
-
-    Scanning two accounts should give two files, not one mixed together.
-    """
-    return out_dir / account_dir_name(username or "unknown-account")
+    """Post records live under that account's metadata folder."""
+    return metadata_dir(out_dir, username or "unknown-account")
 
 
 def _read(out_dir: Path) -> list[dict]:

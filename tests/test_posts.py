@@ -17,18 +17,20 @@ def record(post_id="ABC", username="someaccount", kind="post", likes=10,
     )
 
 
-def test_writes_into_the_account_folder(tmp_path):
+def test_writes_into_the_account_metadata_folder(tmp_path):
+    """Records sit beside the media, not among it."""
     write_posts(tmp_path, [record()])
-    assert (tmp_path / "someaccount" / "posts.json").exists()
-    assert (tmp_path / "someaccount" / "posts.csv").exists()
+    assert (tmp_path / "someaccount" / "metadata" / "posts.json").exists()
+    assert (tmp_path / "someaccount" / "metadata" / "posts.csv").exists()
     assert not (tmp_path / "posts.json").exists()
+    assert not (tmp_path / "someaccount" / "posts.json").exists()
 
 
 def test_two_accounts_do_not_mix(tmp_path):
     write_posts(tmp_path, [record(post_id="A", username="one"),
                            record(post_id="B", username="two")])
-    one = json.loads((tmp_path / "one" / "posts.json").read_text(encoding="utf-8"))
-    two = json.loads((tmp_path / "two" / "posts.json").read_text(encoding="utf-8"))
+    one = json.loads((tmp_path / "one" / "metadata" / "posts.json").read_text(encoding="utf-8"))
+    two = json.loads((tmp_path / "two" / "metadata" / "posts.json").read_text(encoding="utf-8"))
     assert [r["post_id"] for r in one] == ["A"]
     assert [r["post_id"] for r in two] == ["B"]
 
@@ -36,7 +38,7 @@ def test_two_accounts_do_not_mix(tmp_path):
 def test_rescanning_updates_rather_than_duplicates(tmp_path):
     write_posts(tmp_path, [record(likes=10)])
     write_posts(tmp_path, [record(likes=25)])
-    rows = json.loads((tmp_path / "someaccount" / "posts.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "posts.json").read_text(encoding="utf-8"))
     assert len(rows) == 1
     assert rows[0]["likes"] == 25, "a later scan should refresh the counts"
 
@@ -44,13 +46,13 @@ def test_rescanning_updates_rather_than_duplicates(tmp_path):
 def test_newest_first(tmp_path):
     write_posts(tmp_path, [record(post_id="OLD", date="2025-01-01"),
                            record(post_id="NEW", date="2026-06-08")])
-    rows = json.loads((tmp_path / "someaccount" / "posts.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "posts.json").read_text(encoding="utf-8"))
     assert [r["post_id"] for r in rows] == ["NEW", "OLD"]
 
 
 def test_csv_has_the_columns(tmp_path):
     write_posts(tmp_path, [record()])
-    with (tmp_path / "someaccount" / "posts.csv").open(encoding="utf-8-sig", newline="") as fh:
+    with (tmp_path / "someaccount" / "metadata" / "posts.csv").open(encoding="utf-8-sig", newline="") as fh:
         row = next(csv.DictReader(fh))
     for column in ("post_url", "post_date", "kind", "likes", "comments",
                    "images", "videos", "caption"):

@@ -1,7 +1,9 @@
-"""The CSV/JSON index that records what was saved.
+"""The CSV/JSON records describing what was saved.
 
-The index doubles as the deduplication memory: hashes are loaded before a run
-so files already on disk are never fetched twice.
+Each account keeps its own records under `<account>/metadata/`, beside its
+media rather than mixed in with it. The index doubles as the deduplication
+memory: hashes are loaded before a run so files already on disk are never
+fetched twice.
 """
 
 from __future__ import annotations
@@ -12,13 +14,14 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .media import MediaRecord
+from .paths import METADATA_DIR, account_dir_name, metadata_dir
 
 PLACEHOLDER_TYPE = "video_skipped"
 
-# Excel and PowerShell 5.1 read a CSV as the legacy Windows codepage
-# unless it starts with a byte-order mark, which turns Icelandic and
-# every other non-ASCII caption into mojibake. utf-8-sig writes the
-# mark; the content is ordinary UTF-8 either way.
+# Excel and PowerShell 5.1 read a CSV as the legacy Windows codepage unless it
+# starts with a byte-order mark, which turns Icelandic and every other
+# non-ASCII caption into mojibake. utf-8-sig writes the mark; the content is
+# ordinary UTF-8 either way.
 CSV_ENCODING = "utf-8-sig"
 
 INDEX_JSON = "index.json"
@@ -26,12 +29,13 @@ INDEX_CSV = "index.csv"
 COMMENTS_JSON = "comments.json"
 COMMENTS_CSV = "comments.csv"
 
-COMMENT_FIELDS = ["post_url", "post_id", "post_date", "username",
-                 "timestamp", "text"]
+COMMENT_FIELDS = ["post_url", "post_id", "post_date", "account", "username",
+                  "timestamp", "text"]
 
 
-def _read_existing(out_dir: Path) -> list[dict]:
-    path = out_dir / INDEX_JSON
+# --------------------------------------------------------------- reading ---
+
+def _read_json(path: Path) -> list[dict]:
     if not path.exists():
         return []
     try:
@@ -39,6 +43,19 @@ def _read_existing(out_dir: Path) -> list[dict]:
     except (json.JSONDecodeError, OSError):
         return []
     return data if isinstance(data, list) else []
+
+
+def index_paths(out_dir: Path) -> list[Path]:
+    """Every account's index under this archive."""
+    return sorted(out_dir.glob(f"*/{METADATA_DIR}/{INDEX_JSON}"))
+
+
+def _read_existing(out_dir: Path) -> list[dict]:
+    """Every row, across every account in this archive."""
+    rows: list[dict] = []
+    for path in index_paths(out_dir):
+        rows.extend(_read_json(path))
+    return rows
 
 
 def load_known_hashes(out_dir: Path) -> set[str]:
@@ -102,92 +119,86 @@ def completed_post_ids(out_dir: Path, want_videos: bool) -> set[str]:
     return done
 
 
-def write_index_rows(out_dir: Path, rows: list[dict]) -> None:
-    """Write both index files from raw rows, e.g. after a layout change."""
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / INDEX_JSON).write_text(
+# --------------------------------------------------------------- writing ---
+
+def _write_pair(meta_dir: Path, stem_json: str, stem_csv: str,
+                rows: list[dict], fields: list[str] | None = None) -> None:
+    """Write one set of rows as both JSON and CSV."""
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    (meta_dir / stem_json).write_text(
         json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
-    fields: list[str] = []
-    for row in rows:
-        for key in row:
-            if key not in fields:
-                fields.append(key)
+    if fields is None:
+        # Rows written by an older version may lack newer columns; take the
+        # union so an upgrade never drops data or crashes the writer.
+        fields = []
+        for row in rows:
+            for key in row:
+                if key not in fields:
+                    fields.append(key)
     if not fields:
         return
-    with (out_dir / INDEX_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=fields, restval="", extrasaction="ignore"
-        )
+
+    with (meta_dir / stem_csv).open("w", newline="", encoding=CSV_ENCODING) as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, restval="",
+                                extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
 
+def write_index_rows(out_dir: Path, rows: list[dict]) -> None:
+    """Rewrite the indexes from raw rows, e.g. after a layout change."""
+    by_account: dict[str, list[dict]] = {}
+    for row in rows:
+        by_account.setdefault(row.get("username") or "unknown-account",
+                              []).append(row)
+    for username, group in by_account.items():
+        _write_pair(metadata_dir(out_dir, username), INDEX_JSON, INDEX_CSV, group)
+
+
 def write_index(out_dir: Path, records: list[MediaRecord]) -> None:
-    """Merge new records into the index, then rewrite both files."""
+    """Merge new records into each account's index."""
     if not records:
         return
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # Keyed so a new record supersedes an older one for the same content:
-    # a file that moved needs its recorded path updated, not a second row.
-    # Positions where this batch saved real media: any placeholder standing in
-    # for them is now history and must not linger in the index.
-    filled = {
-        (r.post_id, r.carousel_index)
-        for r in records
-        if r.media_type != PLACEHOLDER_TYPE
-    }
-
-    merged_by_key: dict[tuple, dict] = {}
-    for row in _read_existing(out_dir):
-        if (row.get("media_type") == PLACEHOLDER_TYPE
-                and (row.get("post_id"), row.get("carousel_index")) in filled):
-            continue
-        merged_by_key[(row.get("post_id"), row.get("sha256"),
-                       row.get("carousel_index"))] = row
+    by_account: dict[str, list[MediaRecord]] = {}
     for record in records:
-        row = asdict(record)
-        row.pop("relocated", None)      # a run detail, not archive data
-        row.pop("refreshed", None)
-        merged_by_key[(record.post_id, record.sha256,
-                       record.carousel_index)] = row
-    merged = list(merged_by_key.values())
+        by_account.setdefault(record.username, []).append(record)
 
-    (out_dir / INDEX_JSON).write_text(
-        json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    for username, group in by_account.items():
+        meta_dir = metadata_dir(out_dir, username)
+        existing = _read_json(meta_dir / INDEX_JSON)
 
-    # Rows written by an older version may lack newer columns; take the union
-    # so an upgrade never drops data or crashes the writer.
-    fields: list[str] = []
-    for row in merged:
-        for key in row:
-            if key not in fields:
-                fields.append(key)
+        # Positions where this batch saved real media: any placeholder standing
+        # in for them is now history and must not linger.
+        filled = {
+            (r.post_id, r.carousel_index)
+            for r in group
+            if r.media_type != PLACEHOLDER_TYPE
+        }
 
-    with (out_dir / INDEX_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=fields, restval="", extrasaction="ignore"
-        )
-        writer.writeheader()
-        writer.writerows(merged)
+        # Keyed so a new record supersedes an older one for the same content:
+        # a file that moved needs its recorded path updated, not a second row.
+        merged: dict[tuple, dict] = {}
+        for row in existing:
+            if (row.get("media_type") == PLACEHOLDER_TYPE
+                    and (row.get("post_id"), row.get("carousel_index")) in filled):
+                continue
+            merged[(row.get("post_id"), row.get("sha256"),
+                    row.get("carousel_index"))] = row
 
+        for record in group:
+            row = asdict(record)
+            row.pop("relocated", None)      # run details, not archive data
+            row.pop("refreshed", None)
+            merged[(record.post_id, record.sha256, record.carousel_index)] = row
 
-def _read_comments(out_dir: Path) -> list[dict]:
-    path = out_dir / COMMENTS_JSON
-    if not path.exists():
-        return []
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-    return data if isinstance(data, list) else []
+        _write_pair(meta_dir, INDEX_JSON, INDEX_CSV, list(merged.values()))
 
 
 def write_comments(out_dir: Path, rows: list[dict]) -> int:
-    """Merge comment rows into comments.json / comments.csv.
+    """Merge comment rows into each account's comment files.
 
     Kept apart from the media index: comments are other people's words about
     the post, not a description of a file on disk. Returns how many were new.
@@ -195,32 +206,32 @@ def write_comments(out_dir: Path, rows: list[dict]) -> int:
     if not rows:
         return 0
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    existing = _read_comments(out_dir)
-    seen = {
-        (r.get("post_id"), r.get("username"), r.get("timestamp"), r.get("text"))
-        for r in existing
-    }
-
-    added = []
+    by_account: dict[str, list[dict]] = {}
     for row in rows:
-        key = (row.get("post_id"), row.get("username"), row.get("timestamp"),
-               row.get("text"))
-        if key in seen:
-            continue
-        seen.add(key)
-        added.append(row)
+        by_account.setdefault(row.get("account") or "unknown-account",
+                              []).append(row)
 
-    if not added:
-        return 0
+    added_total = 0
+    for account, group in by_account.items():
+        meta_dir = out_dir / account_dir_name(account) / METADATA_DIR
+        existing = _read_json(meta_dir / COMMENTS_JSON)
+        seen = {
+            (r.get("post_id"), r.get("username"), r.get("timestamp"), r.get("text"))
+            for r in existing
+        }
 
-    merged = existing + added
-    (out_dir / COMMENTS_JSON).write_text(
-        json.dumps(merged, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-    with (out_dir / COMMENTS_CSV).open("w", newline="", encoding=CSV_ENCODING) as handle:
-        writer = csv.DictWriter(handle, fieldnames=COMMENT_FIELDS, restval="",
-                                extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(merged)
-    return len(added)
+        added = []
+        for row in group:
+            key = (row.get("post_id"), row.get("username"),
+                   row.get("timestamp"), row.get("text"))
+            if key in seen:
+                continue
+            seen.add(key)
+            added.append(row)
+
+        if added:
+            _write_pair(meta_dir, COMMENTS_JSON, COMMENTS_CSV,
+                        existing + added, COMMENT_FIELDS)
+            added_total += len(added)
+
+    return added_total

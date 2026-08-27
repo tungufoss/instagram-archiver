@@ -260,7 +260,8 @@ def save_post(context, page, post_url, out_dir, hashes, want_videos=True,
                 "post_url": post_url,
                 "post_id": post_id,
                 "post_date": post_date,
-                "username": c.username,
+                "account": username,          # whose post it is
+                "username": c.username,       # who wrote the comment
                 "timestamp": c.timestamp,
                 "text": c.text,
             }

@@ -116,27 +116,22 @@ somewhere else with `--out`.
 
 ```text
 ig_archiver/
-  index.csv
-  index.json
-  someaccount/
-    2026-08-17_DcJvpIRjwJa/
-      01.jpg
-      02.jpg
-      03.mp4
-    2026-07-08_DZsluBdCreP/
-      01.jpg
-```
-
-With `--flatten`, the per-post folders go away and the names carry the same
-information:
-
-```text
-ig_archiver/
+  archive.log
   someaccount/
     2026-08-17_DcJvpIRjwJa_01.jpg
-    2026-08-17_DcJvpIRjwJa_02.jpg
+    2026-08-17_DcJvpIRjwJa_02.mp4
     2026-07-08_DZsluBdCreP_01.jpg
+    metadata/
+      index.csv      index.json      one row per file
+      posts.csv      posts.json      one row per post
+      comments.csv   comments.json   if --comments was used
+      followers.csv                  one row per followers run
+      followers/2026-08-27_2050.json a dated snapshot of the names
 ```
+
+Each account owns its records. They sit in `metadata/` rather than among the
+pictures, so a file browser opened on the account folder shows photographs and
+nothing else, and two accounts never share a file.
 
 Photos and videos share one numbering sequence per post, in carousel order.
 

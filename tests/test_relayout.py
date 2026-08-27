@@ -43,7 +43,8 @@ def test_moving_a_file_updates_its_recorded_path(tmp_path):
     flat = "someaccount/2026-06-08_ABC_01.jpg"
     write_index(tmp_path, [record(rel=flat, filename="2026-06-08_ABC_01.jpg")])
 
-    rows = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "index.json")
+                  .read_text(encoding="utf-8"))
     assert len(rows) == 1, "the same content must not appear twice"
     assert rows[0]["relative_path"] == flat
 

@@ -31,7 +31,7 @@ def test_write_and_reload(tmp_path):
     write_index(tmp_path, records)
 
     assert load_known_hashes(tmp_path) == {"aa", "bb"}
-    rows = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "index.json").read_text(encoding="utf-8"))
     assert [r["media_type"] for r in rows] == ["image", "video"]
 
 
@@ -40,7 +40,7 @@ def test_rerun_does_not_duplicate(tmp_path):
     write_index(tmp_path, records)
     write_index(tmp_path, records)
 
-    rows = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "index.json").read_text(encoding="utf-8"))
     assert len(rows) == 1
 
 
@@ -49,6 +49,7 @@ def test_legacy_rows_without_new_columns_survive(tmp_path):
     legacy = [
         {
             "post_url": "u",
+            "username": "someaccount",
             "post_id": "P0",
             "post_date": "2026-08-01",
             "carousel_index": 1,
@@ -58,12 +59,14 @@ def test_legacy_rows_without_new_columns_survive(tmp_path):
             "sha256": "zz",
         }
     ]
-    (tmp_path / "index.json").write_text(json.dumps(legacy), encoding="utf-8")
+    meta = tmp_path / "someaccount" / "metadata"
+    meta.mkdir(parents=True)
+    (meta / "index.json").write_text(json.dumps(legacy), encoding="utf-8")
 
     write_index(tmp_path, [record(sha="aa")])
 
     assert load_known_hashes(tmp_path) == {"zz", "aa"}
-    with (tmp_path / "index.csv").open(encoding="utf-8-sig", newline="") as handle:
+    with (tmp_path / "someaccount" / "metadata" / "index.csv").open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert "media_type" in rows[0]
     assert rows[0]["media_type"] == ""       # legacy row, column left blank
@@ -71,7 +74,9 @@ def test_legacy_rows_without_new_columns_survive(tmp_path):
 
 
 def test_corrupt_index_is_not_fatal(tmp_path):
-    (tmp_path / "index.json").write_text("{ not json", encoding="utf-8")
+    meta = tmp_path / "someaccount" / "metadata"
+    meta.mkdir(parents=True)
+    (meta / "index.json").write_text("{ not json", encoding="utf-8")
     assert load_known_hashes(tmp_path) == set()
     write_index(tmp_path, [record(sha="aa")])
     assert load_known_hashes(tmp_path) == {"aa"}
@@ -79,7 +84,7 @@ def test_corrupt_index_is_not_fatal(tmp_path):
 
 def test_empty_records_writes_nothing(tmp_path):
     write_index(tmp_path, [])
-    assert not (tmp_path / "index.json").exists()
+    assert not (tmp_path / "someaccount" / "metadata" / "index.json").exists()
 
 
 def test_a_real_file_supersedes_its_placeholder(tmp_path):
@@ -92,7 +97,7 @@ def test_a_real_file_supersedes_its_placeholder(tmp_path):
         source_url="", sha256="",
     )
     write_index(tmp_path, [placeholder])
-    assert len(json.loads((tmp_path / "index.json").read_text())) == 1
+    assert len(json.loads((tmp_path / "someaccount" / "metadata" / "index.json").read_text())) == 1
 
     real = MediaRecord(
         post_url="https://www.instagram.com/p/P1/", username="someaccount",
@@ -103,7 +108,7 @@ def test_a_real_file_supersedes_its_placeholder(tmp_path):
     )
     write_index(tmp_path, [real])
 
-    rows = json.loads((tmp_path / "index.json").read_text())
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "index.json").read_text())
     assert len(rows) == 1, "the placeholder row should be gone"
     assert rows[0]["media_type"] == "video"
     assert rows[0]["filename"] == "04.mp4"
@@ -129,7 +134,7 @@ def test_placeholders_at_other_positions_survive(tmp_path):
     )
     write_index(tmp_path, [real])
 
-    rows = json.loads((tmp_path / "index.json").read_text())
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "index.json").read_text())
     kinds = {r["carousel_index"]: r["media_type"] for r in rows}
     assert kinds == {4: "video_skipped", 6: "video", 8: "video_skipped"}
 

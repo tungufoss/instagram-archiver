@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Each account's records now live in `<account>/metadata/` - the index, post
+  list, comments and follower history - rather than at the archive root or
+  loose among the pictures. A file browser opened on an account folder shows
+  photographs and nothing else, and two accounts never share a file.
+- Comment rows carry the account whose post they belong to, as well as the
+  person who wrote them.
+
 ## [0.3.0] - 2026-08-27
 
 Describing an account without downloading it, and reading what only the

@@ -16,6 +16,12 @@ APP_NAME = "instagram-archiver"
 # Everything this tool saves lives under one root folder.
 ARCHIVE_ROOT = "ig_archiver"
 
+# Records about an account live beside its media, not mixed in with it:
+# <out>/<account>/metadata/ holds the index, the post list, the
+# comments and the follower history, while the pictures sit one level
+# up where a file browser shows them without clutter.
+METADATA_DIR = "metadata"
+
 def default_browser_profile_dir() -> Path:
     """Per-user application data, where a live session belongs."""
     if sys.platform == "win32":
@@ -37,6 +43,11 @@ def default_output_dir() -> Path:
     you can move them wherever you like afterwards.
     """
     return Path.cwd() / ARCHIVE_ROOT
+
+
+def metadata_dir(out_dir, username: str):
+    """Where an account's records live."""
+    return out_dir / account_dir_name(username) / METADATA_DIR
 
 
 def account_dir_name(username: str) -> str:

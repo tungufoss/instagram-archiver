@@ -72,27 +72,27 @@ def test_order_is_preserved():
 
 def row(username="someone", text="nice", timestamp="2026-06-08T10:00:00+00:00"):
     return {"post_url": "https://www.instagram.com/p/ABC/", "post_id": "ABC",
-            "post_date": "2026-06-08", "username": username,
-            "timestamp": timestamp, "text": text}
+            "post_date": "2026-06-08", "account": "someaccount",
+            "username": username, "timestamp": timestamp, "text": text}
 
 
 def test_writes_both_files(tmp_path):
     assert write_comments(tmp_path, [row()]) == 1
-    assert (tmp_path / "comments.json").exists()
-    assert (tmp_path / "comments.csv").exists()
+    assert (tmp_path / "someaccount" / "metadata" / "comments.json").exists()
+    assert (tmp_path / "someaccount" / "metadata" / "comments.csv").exists()
 
 
 def test_rerunning_does_not_duplicate(tmp_path):
     write_comments(tmp_path, [row()])
     assert write_comments(tmp_path, [row()]) == 0
-    rows = json.loads((tmp_path / "comments.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "comments.json").read_text(encoding="utf-8"))
     assert len(rows) == 1
 
 
 def test_a_second_comment_is_appended(tmp_path):
     write_comments(tmp_path, [row(text="one")])
     assert write_comments(tmp_path, [row(text="two")]) == 1
-    rows = json.loads((tmp_path / "comments.json").read_text(encoding="utf-8"))
+    rows = json.loads((tmp_path / "someaccount" / "metadata" / "comments.json").read_text(encoding="utf-8"))
     assert {r["text"] for r in rows} == {"one", "two"}
 
 
@@ -103,7 +103,7 @@ def test_same_words_from_different_people_both_kept(tmp_path):
 
 def test_nothing_to_write(tmp_path):
     assert write_comments(tmp_path, []) == 0
-    assert not (tmp_path / "comments.json").exists()
+    assert not (tmp_path / "someaccount" / "metadata" / "comments.json").exists()
 
 
 def test_preview_comments_are_read():

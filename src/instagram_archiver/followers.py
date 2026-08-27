@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .indexing import CSV_ENCODING
-from .paths import account_dir_name
+from .paths import metadata_dir
 
 SNAPSHOT_DIR = "followers"
 TIMESERIES_CSV = "followers.csv"
@@ -41,8 +41,8 @@ class Change:
 
 
 def account_dir_for(out_dir: Path, username: str) -> Path:
-    """Follower history lives with that account's other records."""
-    return out_dir / account_dir_name(username or "unknown-account")
+    """Follower history lives under that account's metadata folder."""
+    return metadata_dir(out_dir, username or "unknown-account")
 
 
 def snapshot_path(account_dir: Path, taken_at: datetime) -> Path:
