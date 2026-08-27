@@ -159,6 +159,27 @@ anything already recorded, appends the new rows and rewrites both files.
 Re-running is safe: hashes are loaded from the index first, so files already on
 disk are never downloaded twice.
 
+## How long does it take?
+
+Measured against a public, carousel-heavy account: **166 seconds for 5 posts —
+about 33 seconds per post**, producing 45 files and 57 MB.
+
+| Posts | Rough time |
+| --- | --- |
+| 5 | ~3 minutes |
+| 20 | ~10 minutes |
+| **45** | **~25 minutes** |
+| 100 | ~55 minutes |
+
+Most of that is deliberate waiting, not transfer: 3–6 s between posts, 1–2 s
+between carousel slides, and 3 s on each video slide so the browser actually
+requests the file. A profile of single photos runs far quicker than one full of
+16-slide carousels, so treat these as a middle estimate rather than a promise.
+
+Leave it running. There is no resume flag, but re-running is cheap: everything
+already in the index is skipped, so an interrupted run picks up where it left
+off.
+
 ## Options
 
 | Flag | Meaning |
