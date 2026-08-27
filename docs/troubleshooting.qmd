@@ -1,0 +1,56 @@
+# Troubleshooting
+
+## "This profile is private and the account you are logged in as does not follow it"
+
+Exactly what it says. That is a server-side restriction, not a bug. Follow the
+account and wait to be accepted, or log in as an account that already follows
+it. There is no workaround, by design.
+
+## Zero posts found on a public profile
+
+Likely an Instagram markup change. Open the profile in the same Chromium
+window yourself to confirm what you can actually see, then
+[file a bug](https://github.com/tungufoss/instagram-archiver/issues/new?template=bug_report.md).
+
+## A video has no sound
+
+Instagram delivered picture and sound as separate files and `ffmpeg` was not
+there to merge them. [Install ffmpeg](install.qmd#ffmpeg) and run again with
+`--force`.
+
+## A carousel slide's video was missed
+
+Raise `VIDEO_SETTLE` in `src/instagram_archiver/config.py`. Each video slide
+waits for playback to start before the file is requested, and a slow
+connection can need longer.
+
+## How do I switch Instagram accounts?
+
+Delete the [session directory](options.qmd#where-the-session-lives) and run
+`login` again.
+
+## A CSV opens as mojibake
+
+It should not - CSV and log files carry a byte-order mark for exactly this
+reason. If it still happens, check that your spreadsheet is not overriding the
+encoding on import.
+
+## Known limits
+
+- **Video quality is whatever Instagram serves your browser** - typically a
+  compressed rendition, not an original master.
+- **Stories, highlights and archived posts are not covered.**
+- **Comment capture is thin.** Only what the page has loaded is read, which is
+  a handful on a busy post.
+- **Follower lists are complete only for accounts you can log in as.** See
+  [what is visible](visibility.qmd#follower-names).
+- **Instagram changes its markup without warning**; selectors may need
+  updating.
+
+## Your data
+
+The session directory holds a live logged-in session. **Treat it like a
+password** - do not copy or share it. Downloaded media is gitignored.
+
+Report a security issue through
+[SECURITY.md](https://github.com/tungufoss/instagram-archiver/blob/main/SECURITY.md).

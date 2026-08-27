@@ -1,0 +1,59 @@
+# What is visible, and to whom
+
+What this tool can record depends on the account you are reading and the
+account you are reading it as. **Every row below was measured, not assumed** -
+by reading one account as a viewer and again while logged in as it.
+
+| | Private, you follow it | Public, as a viewer | Logged in as the account |
+| --- | --- | --- | --- |
+| Photographs, videos, captions, timestamps | yes | yes | yes |
+| Post or reel, photo and video counts | yes | yes | yes |
+| Comment counts | yes | yes | yes |
+| **Like counts** | yes, but see below | **unreliable on older posts** | yes |
+| **Follower names** | none - nothing to open | a partial sample | **complete** |
+| Follower count | yes | yes | yes |
+| **View counts** | no | no | **yes, for reels** |
+
+## Like counts
+
+Scanning one public account both ways, its four most recent posts reported the
+same likes either way, while four older ones reported **3** likes to a viewer
+and **41, 54, 34 and 28** to the account itself.
+
+A low like count read as a viewer may be a placeholder rather than a number,
+and there is no way to tell from the outside which it is.
+
+::: {.callout-warning title="Treat a viewer's like count as a lower bound"}
+
+It is never higher than the truth, and on older posts it can be far lower.
+
+:::
+
+## Follower names
+
+Read as a viewer, the follower dialog is virtualised: five different
+strategies each returned between **432 and 459** of one account's 603 names.
+Logged in as the account, the same code returned **606** - Instagram serves
+the list properly, and the tool reads it from those responses rather than from
+the rendered rows.
+
+So follower tracking is worth doing only for accounts you can log in as. For
+anyone else's account you get a reliable count and a large sample of names.
+
+A snapshot records the count it was aiming for and whether it matched, and
+**two partial snapshots are never compared** - that would invent departures,
+since a name missing from one run is usually a name that run did not see.
+
+## View counts
+
+Instagram leaves `view_count` null in every post's page data - for viewers and
+for the account itself, and even on a reel with 627,728 likes. The number is
+not in the data at all.
+
+It is drawn on the tiles of the profile's **reels tab**, though, and that is
+visible when the account is looking at its own profile.
+[`scan`](commands.qmd#scan) reads it there in a single pass before walking the
+posts, and records it against each reel.
+
+A post that is not a reel has no count, and neither does any reel seen by
+anyone but the account itself. Those stay blank rather than zero.

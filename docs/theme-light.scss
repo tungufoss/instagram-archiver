@@ -1,0 +1,32 @@
+/*-- scss:defaults --*/
+// A Material for MkDocs look, in Quarto. Light palette: indigo on white.
+
+$font-family-sans-serif: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$font-family-monospace:  "Roboto Mono", SFMono-Regular, Menlo, Consolas, monospace !default;
+
+$primary:     #3f51b5;
+$link-color:  #3f51b5;
+$body-color:  rgba(0, 0, 0, 0.87);
+$body-bg:     #ffffff;
+
+$font-size-root:  16px;
+$line-height-base: 1.7;
+$headings-font-weight: 400;
+$border-radius: 0.2rem;
+
+$code-color:      #37474f;
+$code-bg:         rgba(0, 0, 0, 0.045);
+$table-border-color: rgba(0, 0, 0, 0.07);
+
+$navbar-bg:            $primary;
+$navbar-fg:            #ffffff;
+$navbar-hl:            #ffffff;
+$sidebar-fg:           rgba(0, 0, 0, 0.72);
+$sidebar-hl:           $primary;
+$toc-color:            rgba(0, 0, 0, 0.6);
+$toc-active-border:    $primary;
+
+/*-- scss:mixins --*/
+
+/*-- scss:rules --*/
+@import "_material-shared.scss";

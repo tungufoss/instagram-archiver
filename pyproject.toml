@@ -34,6 +34,7 @@ dev = ["pytest>=8.0", "ruff>=0.6"]
 Homepage = "https://github.com/tungufoss/instagram-archiver"
 Repository = "https://github.com/tungufoss/instagram-archiver"
 Issues = "https://github.com/tungufoss/instagram-archiver/issues"
+Documentation = "https://tungufoss.github.io/instagram-archiver/"
 Changelog = "https://github.com/tungufoss/instagram-archiver/blob/main/CHANGELOG.md"
 
 [project.scripts]

@@ -1,0 +1,65 @@
+# First archive
+
+## 1. Log in, once, by hand
+
+```bash
+instagram-archiver login
+```
+
+A Chromium window opens on the Instagram login page. Log in yourself,
+including any two-factor step. **Nothing is typed for you**, and neither your
+password nor your session is read by the tool. The browser keeps the session
+in a per-user directory and every later run reuses it.
+
+## 2. Try a few posts first
+
+```bash
+instagram-archiver profile https://www.instagram.com/someaccount/ --max-posts 3
+```
+
+Three posts take about a minute and a half and tell you whether the account is
+visible to you at all.
+
+## 3. Archive the profile
+
+```bash
+instagram-archiver profile https://www.instagram.com/someaccount/
+```
+
+Photographs only, by default. Add `--videos` to save videos too:
+
+```bash
+instagram-archiver profile https://www.instagram.com/someaccount/ --videos
+```
+
+Progress is printed after every post:
+
+```text
+  [######..................]  26.7%  12/45 posts | 148 files | 09:12 elapsed | ~25:18 left
+```
+
+Leave it running. Re-running is cheap - everything already in the index is
+skipped - and `--resume` skips complete posts without even visiting them.
+
+## 4. See what you got
+
+```text
+ig_archiver/
+  archive.log
+  someaccount/
+    2026-08-17_DcJvpIRjwJa_01.jpg
+    2026-08-17_DcJvpIRjwJa_02.mp4
+    metadata/
+      index.csv   index.json
+      posts.csv   posts.json
+```
+
+[The full layout](output.qmd) explains every file.
+
+## Where next
+
+- Only want to know *what* an account posted? [`scan`](commands.qmd#scan) does
+  that in a tenth of the time, without downloading anything.
+- Reading someone else's public account? Read
+  [what is visible, and to whom](visibility.qmd) first - some numbers are a
+  lower bound rather than the truth.

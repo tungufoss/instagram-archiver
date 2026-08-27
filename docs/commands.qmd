@@ -1,0 +1,140 @@
+# Commands
+
+```text
+instagram-archiver [options] {login,profile,relayout,fill-videos,scan,followers,post} ...
+```
+
+Every command accepts the [common options](options.qmd). The ones listed below
+are extra.
+
+---
+
+## `login`
+
+Open a window and wait for manual login.
+
+```bash
+instagram-archiver login
+```
+
+Log in yourself, two-factor included. The session is saved to a per-user
+browser profile directory and reused by every later run, so you do this once
+per account. Override the location with `--browser-profile`.
+
+---
+
+## `profile`
+
+Archive every visible post on a profile.
+
+```bash
+instagram-archiver profile https://www.instagram.com/someaccount/
+```
+
+| Extra option | Meaning |
+| --- | --- |
+| `--max-posts N` | stop after N posts, useful for a first test run |
+
+Photographs are saved by default; videos need `--videos`, and a video that was
+not saved leaves [a placeholder](output.qmd#placeholders). Reels are archived
+too - they are ordinary posts of the account's own - unless you pass
+`--skip-reels`.
+
+---
+
+## `post`
+
+Archive one specific post URL.
+
+```bash
+instagram-archiver post https://www.instagram.com/p/ABC123/
+```
+
+Works with `/p/` and `/reel/` URLs.
+
+---
+
+## `scan`
+
+Record what a profile posted - dates, counts, captions - **without downloading
+any media**.
+
+```bash
+instagram-archiver scan https://www.instagram.com/someaccount/
+```
+
+| Extra option | Meaning |
+| --- | --- |
+| `--max-posts N` | stop after N posts |
+
+One row per post in the account's `metadata/posts.csv` and `posts.json`: date
+and exact timestamp, post or reel, photo and video counts, likes, comment
+count, play count and caption. About **3 seconds a post**, against 30 for
+archiving.
+
+::: {.callout-note title="Play counts need the account itself"}
+
+Instagram leaves `view_count` null in every post's page data, but draws it
+on the reels tab, which the account can see about itself. `scan` reads it
+there. See [what is visible](visibility.qmd#view-counts).
+
+:::
+
+---
+
+## `followers`
+
+Record who follows an account, and what changed since last time.
+
+```bash
+instagram-archiver followers https://www.instagram.com/someaccount/
+```
+
+Writes a dated snapshot of the names to `metadata/followers/` and appends a
+row to `metadata/followers.csv`, then reports who joined or left since the
+previous snapshot.
+
+**Its own command, never part of archiving.** A snapshot records the count it
+was aiming for and whether it matched, and two partial snapshots are never
+compared - a name missing from one run is usually a name that run did not see,
+not somebody who left.
+
+::: {.callout-warning title="Complete only for accounts you can log in as"}
+
+Read as a viewer the follower dialog is virtualised: five different
+strategies each returned 432-459 of one account's 603 names. Logged in as
+that account, the same code returned all 606.
+
+:::
+
+---
+
+## `fill-videos`
+
+Fetch only the videos an earlier run skipped, using the index.
+
+```bash
+instagram-archiver fill-videos
+```
+
+Reads the index, visits only the posts holding a placeholder, and ignores the
+profile entirely. Filling 15 videos across 6 posts took **131 seconds**,
+against about 14 minutes to walk the whole profile.
+
+---
+
+## `relayout`
+
+Rearrange an archive already on disk. **No browser, no network.**
+
+```bash
+instagram-archiver relayout --nested --dry-run
+instagram-archiver relayout --nested
+```
+
+| Extra option | Meaning |
+| --- | --- |
+| `--dry-run` | list what would move, without moving anything |
+
+Nothing is re-downloaded: files move into their new place, the index is
+updated, and folders left empty are tidied up. It works in both directions.

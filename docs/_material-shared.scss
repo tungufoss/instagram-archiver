@@ -1,0 +1,174 @@
+// Shared rules for both palettes: the Material for MkDocs reading experience -
+// quiet chrome, generous line height, admonitions with a coloured rail.
+
+// ---------------------------------------------------------------- chrome ---
+
+.navbar {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+
+  // fa-camera-retro (Font Awesome Free 6, CC BY 4.0) as the wordmark's icon.
+  .navbar-brand {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+
+    &::before {
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      content: "\f083";
+      font-size: 1.15rem;
+      margin-right: 0.55rem;
+      opacity: 0.95;
+    }
+  }
+  .navbar-logo  { height: 26px; margin-right: 0.55rem; }
+  .navbar-nav .nav-link {
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    opacity: 0.86;
+    &:hover, &.active { opacity: 1; }
+  }
+}
+
+#quarto-sidebar {
+  border-right: none;
+  font-size: 0.85rem;
+
+  .sidebar-item-container { margin: 0.05rem 0; }
+
+  .sidebar-section .sidebar-item .sidebar-item-container > a,
+  .sidebar-item > .sidebar-item-container > a {
+    border-radius: 0.15rem;
+    padding: 0.28rem 0.6rem;
+    transition: background-color 0.15s ease;
+    &:hover { background-color: rgba(128, 128, 128, 0.12); }
+  }
+
+  .sidebar-item-text.active,
+  a.active { font-weight: 600; }
+
+  .sidebar-header-item, .sidebar-section > .sidebar-item-container > a {
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    opacity: 0.62;
+  }
+}
+
+#TOC, .sidebar.toc-right {
+  font-size: 0.8rem;
+  .nav-link { padding: 0.18rem 0 0.18rem 0.75rem; border-left: 2px solid transparent; }
+  .nav-link.active { border-left-color: currentColor; font-weight: 600; }
+}
+
+// ------------------------------------------------------------------ text ---
+
+main {
+  h1, h2, h3, h4 { letter-spacing: -0.01em; }
+  h1 { font-size: 2rem;   margin-bottom: 1.1rem; }
+  h2 { font-size: 1.45rem; margin-top: 2.6rem; padding-bottom: 0.35rem;
+       border-bottom: 1px solid rgba(128, 128, 128, 0.22); }
+  h3 { font-size: 1.12rem; margin-top: 1.9rem; font-weight: 500; }
+  p, li { line-height: 1.75; }
+  ul, ol { padding-left: 1.35rem; }
+  li + li { margin-top: 0.25rem; }
+}
+
+// ------------------------------------------------------------------ code ---
+
+code:not(.sourceCode), code span { font-size: 0.85em; }
+
+div.sourceCode, pre {
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.code-copy-button { opacity: 0; transition: opacity 0.15s ease; }
+div.sourceCode:hover .code-copy-button { opacity: 0.6; }
+
+// ----------------------------------------------------------- admonitions ---
+
+.callout {
+  border: none;
+  border-left: 4px solid;
+  border-radius: 0.15rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  margin: 1.4rem 0;
+
+  .callout-header {
+    background-color: rgba(128, 128, 128, 0.07);
+    font-weight: 600;
+    font-size: 0.88rem;
+    letter-spacing: 0.01em;
+    padding: 0.5rem 0.85rem;
+    border-bottom: none;
+  }
+  .callout-body-container { padding: 0.6rem 0.9rem; }
+  .callout-body-container > :last-child { margin-bottom: 0; }
+}
+
+.callout.callout-style-default > div.callout-header { border-bottom: none; }
+
+// ---------------------------------------------------------------- tables ---
+
+main table {
+  font-size: 0.87rem;
+  width: 100%;
+
+  > thead {
+    border-top: none;
+    th { font-weight: 600; letter-spacing: 0.02em; padding-bottom: 0.5rem; }
+  }
+  td, th { padding: 0.5rem 0.65rem; }
+  tbody tr { transition: background-color 0.12s ease; }
+  tbody tr:hover { background-color: rgba(128, 128, 128, 0.07); }
+}
+
+// --------------------------------------------------------------- tabsets ---
+
+.panel-tabset {
+  .nav-tabs {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+    gap: 0.4rem;
+  }
+  .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.35rem;
+    opacity: 0.62;
+    &:hover  { opacity: 0.9; }
+    &.active { opacity: 1; border-bottom-color: currentColor; }
+  }
+  .tab-content { padding-top: 0.9rem; }
+}
+
+// --------------------------------------------------------------- buttons ---
+
+.btn-primary, .btn-outline-primary {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.55rem 1.15rem;
+  border-radius: 0.15rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+.btn-primary:hover, .btn-outline-primary:hover { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.24); }
+
+// ---------------------------------------------------------------- footer ---
+
+.nav-footer {
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  font-size: 0.82rem;
+  opacity: 0.75;
+}

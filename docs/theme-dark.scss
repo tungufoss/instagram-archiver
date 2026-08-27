@@ -1,0 +1,39 @@
+/*-- scss:defaults --*/
+// A Material for MkDocs look, in Quarto. Dark palette: Material "slate".
+
+$font-family-sans-serif: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !default;
+$font-family-monospace:  "Roboto Mono", SFMono-Regular, Menlo, Consolas, monospace !default;
+
+$primary:     #7986cb;
+$link-color:  #9fa8da;
+$body-color:  rgba(255, 255, 255, 0.87);
+$body-bg:     #1e2129;
+
+$font-size-root:  16px;
+$line-height-base: 1.7;
+$headings-font-weight: 400;
+$border-radius: 0.2rem;
+
+$code-color:      #e0e0e0;
+$code-bg:         rgba(255, 255, 255, 0.06);
+$table-border-color: rgba(255, 255, 255, 0.1);
+
+$navbar-bg:            #262a35;
+$navbar-fg:            rgba(255, 255, 255, 0.92);
+$navbar-hl:            #ffffff;
+$sidebar-bg:           $body-bg;
+$sidebar-fg:           rgba(255, 255, 255, 0.72);
+$sidebar-hl:           $primary;
+$toc-color:            rgba(255, 255, 255, 0.6);
+$toc-active-border:    $primary;
+
+/*-- scss:mixins --*/
+
+/*-- scss:rules --*/
+@import "_material-shared.scss";
+
+// Surfaces that must lift off the slate background rather than sit on white.
+pre, .sourceCode pre, div.sourceCode { background-color: rgba(255, 255, 255, 0.05) !important; }
+.callout { background-color: rgba(255, 255, 255, 0.035); }
+.panel-tabset .nav-tabs .nav-link.active { background-color: transparent; }
+table > thead { border-bottom-color: rgba(255, 255, 255, 0.15); }

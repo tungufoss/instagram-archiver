@@ -1,0 +1,159 @@
+# What you get
+
+Files land in `./ig_archiver/` in whatever directory you run from, one
+subfolder per account. Move them wherever you like afterwards, or point
+somewhere else with `--out`.
+
+```text
+ig_archiver/
+  archive.log
+  someaccount/
+    2026-08-17_DcJvpIRjwJa_01.jpg
+    2026-08-17_DcJvpIRjwJa_02.mp4
+    2026-07-08_DZsluBdCreP_01.jpg
+    metadata/
+      index.csv      index.json      one row per file
+      posts.csv      posts.json      one row per post
+      comments.csv   comments.json   if --comments was used
+      followers.csv                  one row per followers run
+      followers/2026-08-27_2050.json a dated snapshot of the names
+```
+
+Each account owns its records. They sit in `metadata/` rather than among the
+pictures, so a file browser opened on the account folder shows photographs and
+nothing else, and two accounts never share a file.
+
+Photos and videos share one numbering sequence per post, in carousel order. A
+file's number is its position in the post, not a running count of what a
+particular run downloaded - so a photo keeps the same name whether or not
+videos were saved alongside it.
+
+## Flat or nested
+
+Flat is the default. `--nested` gives each post its own folder:
+
+::: {.panel-tabset}
+
+### Flat (default)
+
+```text
+someaccount/
+  2026-08-17_DcJvpIRjwJa_01.jpg
+  2026-08-17_DcJvpIRjwJa_02.jpg
+```
+
+### `--nested`
+
+```text
+someaccount/
+  2026-08-17_DcJvpIRjwJa/
+    01.jpg
+    02.jpg
+```
+
+:::
+
+Switching layout does not re-download anything.
+[`relayout`](commands.qmd#relayout) moves what is already there and updates the
+index; folders left empty are tidied up. A run that only changes layout
+reports `Files downloaded: 0`.
+
+## The index
+
+`metadata/index.csv` and `index.json` are **merged, never overwritten**. Each
+run loads the existing index, skips anything already recorded, appends the new
+rows and rewrites both files.
+
+| Column | Meaning |
+| --- | --- |
+| `post_url` | canonical post URL |
+| `username` | account that posted it |
+| `post_id` | Instagram's shortcode |
+| `post_date` | the post's own date |
+| `media_type` | `image`, `video` or `video_skipped` |
+| `carousel_index` | position within the post |
+| `filename` | file on disk |
+| `relative_path` | path relative to the output directory |
+| `source_url` | CDN URL it came from |
+| `sha256` | hash of the bytes |
+
+Re-running is safe: hashes are loaded from the index first, so files already on
+disk are never downloaded twice.
+
+## The post list
+
+`metadata/posts.csv` and `posts.json`, written by
+[`scan`](commands.qmd#scan) and by archiving runs - one row per post.
+
+| Column | Meaning |
+| --- | --- |
+| `post_url`, `post_id` | the post, and Instagram's shortcode |
+| `username` | account that posted it |
+| `post_date`, `post_time` | its date, and the exact timestamp when the page gave one |
+| `kind` | `post` or `reel` |
+| `likes` | like count - [a lower bound when read as a viewer](visibility.qmd#like-counts) |
+| `views` | play count, reels only, [account itself only](visibility.qmd#view-counts) |
+| `comments` | comment count |
+| `images`, `videos`, `media_count` | what the post holds |
+| `caption` | the caption text |
+
+## Comments
+
+`--comments` writes `metadata/comments.csv` and `comments.json`:
+
+| Column | Meaning |
+| --- | --- |
+| `post_url`, `post_id`, `post_date` | the post they belong to |
+| `account` | the account whose post it is |
+| `username` | who wrote the comment |
+| `timestamp` | when, ISO 8601 |
+| `text` | what they wrote |
+
+Comments are read from the rendered page - Instagram's page JSON leaves
+`preview_comments` empty even on a post with 4,193 - so only what the page has
+loaded is captured, which is a handful on a busy post.
+
+## Followers
+
+[`followers`](commands.qmd#followers) writes a dated snapshot of the names to
+`metadata/followers/` and appends one row per run to `metadata/followers.csv`:
+
+| Column | Meaning |
+| --- | --- |
+| `taken_at` | when the snapshot was taken |
+| `count` | names actually collected |
+| `stated_count` | the follower count Instagram displayed |
+| `complete` | whether those two matched |
+| `joined`, `left` | change since the previous **complete** snapshot |
+
+## Placeholders
+
+Without `--videos`, a carousel slide that held a video would leave a silent
+gap: the numbering jumps and nothing records that anything was there. A
+placeholder image is written instead.
+
+```text
+someaccount/
+  2026-08-17_DcJvpIRjwJa_01.jpg
+  2026-08-17_DcJvpIRjwJa_02.video-not-saved.png     <- a video was here
+  2026-08-17_DcJvpIRjwJa_03.jpg
+```
+
+It is a plain grey PNG, so it sorts into the right position in any photo
+browser and is obviously not a photograph. The index records it with a
+`media_type` of `video_skipped`, which is how
+[`fill-videos`](commands.qmd#fill-videos) finds it later.
+
+## File dates
+
+Each saved file's modified time is set to **when the post was made**, not when
+you downloaded it, so the archive sorts chronologically in any file browser.
+Instagram strips EXIF from uploads, so the filesystem timestamp is the only
+honest place to record this.
+
+## Encoding
+
+CSV and log files are written with a byte-order mark. Excel and PowerShell 5.1
+otherwise read a CSV as the legacy Windows codepage, which turns Icelandic and
+every other non-ASCII caption into mojibake. The content is ordinary UTF-8
+either way.

@@ -1,0 +1,48 @@
+# How long it takes
+
+Measured against a public, carousel-heavy account: **166 seconds for 5 posts -
+about 33 seconds per post**, producing 45 files and 57 MB.
+
+| Posts | Rough time |
+| --- | --- |
+| 5 | ~3 minutes |
+| 20 | ~10 minutes |
+| **45** | **~25 minutes** |
+| 100 | ~55 minutes |
+
+Most of that is deliberate waiting, not transfer: 3-6 s between posts, 1-2 s
+between carousel slides, and 3 s on each video slide so the browser actually
+requests the file. A profile of single photos runs far quicker than one full
+of 16-slide carousels, so treat these as a middle estimate rather than a
+promise.
+
+Video-heavy private accounts are considerably slower than the public account
+measured above - roughly **100-200 s per post** rather than 33 s, because each
+video slide waits for playback to start and then downloads the file.
+
+## Ways to spend less time
+
+| | Time |
+| --- | --- |
+| [`scan`](commands.qmd#scan), which downloads nothing | **~3 s a post**, against 30 for archiving |
+| [`--resume`](options.qmd) over a finished archive of 39 posts | **29 s**, against 14 minutes |
+| [`fill-videos`](commands.qmd#fill-videos) for 15 videos across 6 posts | **131 s**, against about 14 minutes |
+
+`--resume` skips posts the index shows are already complete, instead of
+visiting each one to discover there is nothing to do. A post counts as
+complete when the index holds rows for it and, if you asked for videos, none
+of them is still a placeholder.
+
+`--force` does the opposite: it ignores the index and fetches everything
+again, which is what you want after changing *what* gets saved.
+
+## Watching it run
+
+A status line is printed after every post:
+
+```text
+  [######..................]  26.7%  12/45 posts | 148 files | 09:12 elapsed | ~25:18 left
+```
+
+Leave it running. Re-running is cheap - everything already in the index is
+skipped - so an interrupted run picks up where it left off.

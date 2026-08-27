@@ -1,0 +1,68 @@
+# Install
+
+## Requirements
+
+- Python **3.10 or newer**
+- Chromium, installed through Playwright (below)
+- `ffmpeg`, optional but recommended
+
+## The package
+
+```bash
+pip install git+https://github.com/tungufoss/instagram-archiver.git
+python -m playwright install chromium
+```
+
+The second line is not optional: the tool drives a real Chromium window, and
+Playwright needs to download it once.
+
+::: {.callout-note title="Not on PyPI"}
+
+Install from the Git repository, as above. Add `@v0.3.0` to pin a release:
+`pip install git+https://github.com/tungufoss/instagram-archiver.git@v0.3.0`
+
+:::
+
+## ffmpeg
+
+Instagram sometimes delivers a video's picture and sound as two separate
+files. With `ffmpeg` present they are merged losslessly; without it such a
+video may end up silent.
+
+::: {.panel-tabset}
+
+### Windows
+
+```bash
+winget install Gyan.FFmpeg
+```
+
+### macOS
+
+```bash
+brew install ffmpeg
+```
+
+### Debian / Ubuntu
+
+```bash
+sudo apt install ffmpeg
+```
+
+:::
+
+## Check it worked
+
+```bash
+instagram-archiver --version
+```
+
+## From a clone, for development
+
+```bash
+git clone https://github.com/tungufoss/instagram-archiver.git
+cd instagram-archiver
+pip install -e ".[dev]"
+python -m playwright install chromium
+pytest
+```

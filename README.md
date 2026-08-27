@@ -3,14 +3,17 @@
 [![CI](https://github.com/tungufoss/instagram-archiver/actions/workflows/ci.yml/badge.svg)](https://github.com/tungufoss/instagram-archiver/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-tungufoss.github.io-blue)](https://tungufoss.github.io/instagram-archiver/)
 
 Save local copies of the Instagram **photographs** that **your own logged-in
 account can already see** at full resolution, with metadata, in a sensible folder structure — a class
 group, a family account, your own posts.
 
-Photographs are saved by default. `--videos` adds videos, and `--include-reels`
-adds reels; a video that is not saved leaves a labelled placeholder so nothing
-goes missing silently.
+Photographs are saved by default and reels are archived with the rest;
+`--videos` adds videos and `--skip-reels` leaves reels out. A video that is
+not saved leaves a labelled placeholder, so nothing goes missing silently.
+
+**[Full documentation](https://tungufoss.github.io/instagram-archiver/)**
 
 It drives a real Chromium window through Playwright using a persistent local
 browser profile. You log in by hand once; the session is reused after that.
@@ -108,6 +111,34 @@ Works with `/p/` and `/reel/` URLs.
 instagram-archiver fill-videos
 ```
 
+### 5. Or describe a profile without downloading it
+
+```bash
+instagram-archiver scan https://www.instagram.com/someaccount/
+```
+
+One row per post - date, post or reel, photo and video counts, likes, comment
+count, play count and caption - in about 3 seconds a post, against 30 for
+archiving.
+
+### 6. Or record who follows an account
+
+```bash
+instagram-archiver followers https://www.instagram.com/someaccount/
+```
+
+A dated snapshot of the names, plus what changed since the last one. Its own
+command, never part of archiving, and complete only for an account you can log
+in as.
+
+### 7. Or rearrange an archive already on disk
+
+```bash
+instagram-archiver relayout --nested --dry-run
+```
+
+No browser, no network, nothing re-downloaded.
+
 ## Output
 
 Files land in `./ig_archiver/` in whatever directory you run from, one
@@ -136,22 +167,21 @@ nothing else, and two accounts never share a file.
 Photos and videos share one numbering sequence per post, in carousel order.
 
 Switching layout does not re-download anything. If a file is already in the
-archive, changing `--flatten` moves it into its new place and updates the
+archive, changing `--nested` moves it into its new place and updates the
 index; folders left empty are tidied up. It works in both directions, and a
 run that only changes layout reports `Files downloaded: 0`.
 
 ### Placeholders for videos that were not saved
 
-With `--skip-videos`, a carousel slide that held a video would otherwise leave
+Without `--videos`, a carousel slide that held a video would otherwise leave
 a silent gap: the numbering jumps and nothing records that anything was there.
 Instead a placeholder image is written in its place:
 
 ```text
 someaccount/
-  2026-08-17_DcJvpIRjwJa/
-    01.jpg
-    02.video-not-saved.png     <- a video was here
-    03.jpg
+  2026-08-17_DcJvpIRjwJa_01.jpg
+  2026-08-17_DcJvpIRjwJa_02.video-not-saved.png     <- a video was here
+  2026-08-17_DcJvpIRjwJa_03.jpg
 ```
 
 It is a plain grey PNG, so it sorts into the right position in any photo
@@ -168,7 +198,7 @@ honest place to record this.
 ### Comments
 
 `--comments` records each post's comments in `comments.csv` and
-`comments.json` beside the media — username, time and text, one row each:
+`comments.json` under the account's `metadata/` — username, time and text, one row each:
 
 | Column | Meaning |
 | --- | --- |
@@ -186,7 +216,7 @@ rather than the media index, which describes files on disk.
 
 ### The index
 
-`index.csv` and `index.json` sit at the root of the output directory and are
+`index.csv` and `index.json` sit in the account's `metadata/` folder and are
 **merged, never overwritten**. Each run loads the existing index, skips
 anything already recorded, appends the new rows and rewrites both files.
 
@@ -300,9 +330,9 @@ between carousel slides, and 3 s on each video slide so the browser actually
 requests the file. A profile of single photos runs far quicker than one full of
 16-slide carousels, so treat these as a middle estimate rather than a promise.
 
-Leave it running. There is no resume flag, but re-running is cheap: everything
-already in the index is skipped, so an interrupted run picks up where it left
-off.
+Leave it running. Re-running is cheap - everything already in the index is
+skipped - and `--resume` skips complete posts without even visiting them, so an
+interrupted run picks up where it left off.
 
 Video-heavy private accounts are considerably slower than the public account
 measured above — roughly 100–200 s per post rather than 33 s, because each
@@ -323,11 +353,12 @@ Watch progress live with a status line printed after every post:
 | `--browser-profile DIR` | override the session directory |
 | `--headless` | no window; only useful after `login` has succeeded once |
 | `--videos` | also download videos (off by default) |
-| `--include-reels` | also archive reels listed on a profile (off by default) |
+| `--skip-reels` | leave out posts the profile links as reels (they are archived by default) |
 | `--comments` | also record comments (off by default) |
+| `--log FILE` | where to write the run log (default `archive.log`; `-` for none) |
 | `--resume` | skip posts the index shows are complete |
 | `--force` | ignore the index and fetch everything again, overwriting what is there |
-| `--flatten` | no per-post folders; date and post ID go in the filename |
+| `--nested` | give each post its own folder (flat by default: date and post ID go in the filename) |
 | `--max-posts N` | (profile mode) stop after N posts |
 | `--version` | print the version |
 
@@ -386,8 +417,7 @@ other, in the same folder, in date order. `--skip-reels` leaves them out.
 They are read from their `/p/` URL: `/reel/<code>/` renders a scrolling player
 full of other people's reels and omits the post's own media from the page.
 
-`--include-reels` turns them back on. Passing a reel URL to `post` mode always
-works and is unaffected by this flag.
+Passing a reel URL to `post` mode always works and is unaffected by that flag.
 
 **Co-authored posts.** Instagram lets two accounts share a post, and it appears
 on both their grids. In `profile` mode it is filed under the profile you are

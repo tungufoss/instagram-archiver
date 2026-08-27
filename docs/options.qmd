@@ -1,0 +1,50 @@
+# Options
+
+Accepted by every command. Options that belong to a single command are listed
+with [that command](commands.qmd).
+
+| Flag | Meaning |
+| --- | --- |
+| `--out DIR` | where to save media. Default `./ig_archiver` in the current directory; each account gets its own subfolder |
+| `--browser-profile DIR` | persistent browser profile directory. Default is a per-user application data directory |
+| `--headless` | run without a window. Only after `login` has succeeded once |
+| `--videos` | also download videos. Off by default, so a photo archive stays a photo archive; a skipped video leaves a placeholder |
+| `--skip-reels` | leave out posts the profile links as reels. They are ordinary posts of the account's own, so leaving them out loses content |
+| `--comments` | also record each post's comments - username, time and text. Off by default |
+| `--resume` | skip posts the index shows are already complete, instead of visiting each one to find out |
+| `--force` | ignore the index and fetch everything again, overwriting what is on disk. Use after changing *what* gets saved |
+| `--nested` | give each post its own folder. The default is flat: every file sits in the account folder, named `<date>_<postid>_NN` |
+| `--log FILE` | where to write the run log. Default `archive.log` beside the media; pass `-` to write no log |
+| `--version` | print the version |
+| `--help` | show help, on the tool or on any command |
+
+## The defaults, and why
+
+**Photos, not videos.** A photo archive that quietly grows to 50 GB of video
+is a surprise. Ask for videos with `--videos`; what was skipped is recorded,
+and [`fill-videos`](commands.qmd#fill-videos) fetches it later without walking
+the profile again.
+
+**Reels included.** They are posts the account made, in the same grid as the
+rest. Leaving them out loses content, so `--skip-reels` is the opt-out rather
+than the default.
+
+**Flat, not nested.** Every file sits in the account folder named
+`<date>_<postid>_NN`, which sorts chronologically anywhere. `--nested` gives
+each post its own folder, and [`relayout`](commands.qmd#relayout) converts an
+existing archive either way without re-downloading.
+
+**No comments.** Comments are other people's words about someone's post, so
+collecting them should be a choice rather than a side effect of archiving your
+own photographs.
+
+## Where the session lives
+
+`login` saves the browser session here, and `--browser-profile` overrides it.
+To switch Instagram accounts, delete this directory and run `login` again.
+
+| Platform | Session directory |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\instagram-archiver\browser_profile` |
+| macOS | `~/Library/Application Support/instagram-archiver/browser_profile` |
+| Linux | `${XDG_DATA_HOME:-~/.local/share}/instagram-archiver/browser_profile` |

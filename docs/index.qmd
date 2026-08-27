@@ -1,0 +1,61 @@
+# instagram-archiver
+
+Save local copies of Instagram photos and videos that **your own logged-in
+account can already see** - a class group, a family account, your own posts -
+at full resolution, with metadata, in a folder structure you can hand to
+anyone.
+
+[Install](install.qmd){.btn .btn-primary}
+[First archive](quickstart.qmd){.btn .btn-outline-primary}
+
+---
+
+## What it does
+
+- Saves **photos at full resolution** - typically 2500-3900 px wide, not the
+  640 px preview.
+- Saves **videos** when you ask for them, including reels and videos inside
+  carousels.
+- Walks **every slide of a carousel**.
+- Stamps each file with **the post's own date**, so the archive sorts
+  chronologically in any file browser.
+- Records **captions, like counts, comment counts and reel play counts**, and
+  optionally comments and followers.
+- Keeps a **CSV/JSON index** per account and never downloads the same file
+  twice.
+- Can **describe an account without downloading it** - `scan` records what a
+  profile posted in about 3 seconds a post, against 30 for archiving.
+
+## What it deliberately does not do
+
+::: {.callout-warning title="The lines this tool will not cross"}
+
+- **No credentials in code or config.** Your password, cookies and session
+  tokens are never read, stored or transmitted. You log in by hand in a
+  real browser window.
+- **No bypassing anything.** Private-account rules, blocks and pending
+  follow requests all still apply.
+- **No CAPTCHA solving, no anti-bot evasion.**
+- **No hammering.** Requests are paced deliberately.
+
+If you need something outside those lines, this is the wrong tool.
+
+:::
+
+## The seven commands
+
+| Command | What it does |
+| --- | --- |
+| [`login`](commands.qmd#login) | open a window and wait for you to log in by hand |
+| [`profile`](commands.qmd#profile) | archive every visible post on a profile |
+| [`post`](commands.qmd#post) | archive one post or reel URL |
+| [`scan`](commands.qmd#scan) | record what a profile posted, downloading nothing |
+| [`followers`](commands.qmd#followers) | record who follows an account, and what changed |
+| [`fill-videos`](commands.qmd#fill-videos) | fetch only the videos an earlier run skipped |
+| [`relayout`](commands.qmd#relayout) | rearrange an archive already on disk |
+
+## Please be decent about it
+
+Content other people shared privately with you was shared with *you*.
+Archiving it for yourself is not permission to republish it, and the people in
+those photos did not agree to anything beyond the audience the poster chose.

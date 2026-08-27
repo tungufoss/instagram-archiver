@@ -1,0 +1,79 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "instagram-archiver"
+  description: "Archive Instagram photos and videos your own logged-in account can already see."
+  site-url: https://tungufoss.github.io/instagram-archiver/
+  repo-url: https://github.com/tungufoss/instagram-archiver
+  repo-actions: [edit, issue]
+  favicon: assets/favicon.png
+  search:
+    location: navbar
+    type: overlay
+  navbar:
+    background: primary
+    left:
+      - text: Home
+        href: index.qmd
+      - text: Get started
+        href: install.qmd
+      - text: Guide
+        href: commands.qmd
+      - text: Reference
+        href: options.qmd
+    right:
+      - icon: github
+        href: https://github.com/tungufoss/instagram-archiver
+        aria-label: Source on GitHub
+  sidebar:
+    style: floating
+    collapse-level: 1
+    contents:
+      - index.qmd
+      - section: "Getting started"
+        contents:
+          - install.qmd
+          - quickstart.qmd
+      - section: "Guide"
+        contents:
+          - commands.qmd
+          - output.qmd
+          - visibility.qmd
+          - performance.qmd
+      - section: "Reference"
+        contents:
+          - options.qmd
+          - troubleshooting.qmd
+          - changelog.qmd
+  page-footer:
+    left: "MIT licence"
+    center: 'Icon: [Font Awesome Free](https://fontawesome.com/license/free) (CC BY 4.0)'
+    right:
+      - icon: github
+        href: https://github.com/tungufoss/instagram-archiver
+
+format:
+  html:
+    theme:
+      light: [cosmo, theme-light.scss]
+      dark: [darkly, theme-dark.scss]
+    mainfont: Roboto
+    monofont: "Roboto Mono"
+    toc: true
+    toc-depth: 3
+    anchor-sections: true
+    code-copy: true
+    code-overflow: wrap
+    link-external-newwindow: true
+    grid:
+      sidebar-width: 270px
+      body-width: 880px
+      margin-width: 240px
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
