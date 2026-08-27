@@ -1,0 +1,82 @@
+name: Bug report
+description: Something does not work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, please check the two most common non-bugs:
+
+        - **Zero posts found on a private profile** means the account you are
+          logged in as does not follow it. That is a server-side restriction,
+          not a bug.
+        - **A video came out silent** usually means `ffmpeg` is not installed.
+
+        **Never include other people's private photos, videos, usernames or
+        post URLs in this issue.**
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which mode
+      options: [login, profile, post]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: account-visibility
+    attributes:
+      label: Is the target account public or private?
+      options:
+        - Public
+        - Private, and my account follows it
+        - Private, and my account does not follow it
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: can-see
+    attributes:
+      label: Access check
+      options:
+        - label: I can see this content myself when I browse Instagram normally in the same browser profile
+          required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Console output
+      description: Paste what the tool printed. Redact usernames and post IDs.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `instagram-archiver --version`
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Python version
+      placeholder: "Windows 11, Python 3.12.10"
+    validations:
+      required: true
+
+  - type: input
+    id: ffmpeg
+    attributes:
+      label: ffmpeg version, if the issue involves video
+      placeholder: "not installed / ffmpeg 7.1"

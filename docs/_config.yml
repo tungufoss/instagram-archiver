@@ -1,0 +1,12 @@
+title: instagram-archiver
+description: Archive Instagram photos and videos your own account can already see.
+theme: jekyll-theme-cayman
+show_downloads: false
+
+markdown: kramdown
+kramdown:
+  input: GFM
+
+exclude:
+  - Gemfile
+  - Gemfile.lock

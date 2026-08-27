@@ -1,0 +1,30 @@
+# Local session data - a live logged-in Instagram session, treat like a password.
+# Only relevant if someone points --browser-profile here; the real default lives
+# in a per-user application data directory.
+browser_profile/
+
+# Downloaded media, if someone runs with --out pointing into the repo.
+# The default output is <Pictures>/ig_archiver, well outside this tree.
+ig_archiver/
+instagram_photos/
+index.csv
+index.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/tungufoss/instagram-archiver/discussions
+    about: Ask how to use the tool, or check whether something is expected behaviour.
+  - name: Security issue
+    url: https://github.com/tungufoss/instagram-archiver/security/advisories/new
+    about: Report privately. Please do not open a public issue for security problems.

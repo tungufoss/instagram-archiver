@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "instagram-archiver"
+version = "0.1.0"
+description = "Archive Instagram photos and videos your own logged-in account can already see."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "tungufoss" }]
+keywords = ["instagram", "archive", "backup", "playwright", "personal-data"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: System :: Archiving :: Backup",
+]
+dependencies = ["playwright>=1.44"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/tungufoss/instagram-archiver"
+Repository = "https://github.com/tungufoss/instagram-archiver"
+Issues = "https://github.com/tungufoss/instagram-archiver/issues"
+Changelog = "https://github.com/tungufoss/instagram-archiver/blob/main/CHANGELOG.md"
+
+[project.scripts]
+instagram-archiver = "instagram_archiver.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]

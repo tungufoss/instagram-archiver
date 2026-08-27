@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement within the project's scope
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please read the scope section in `CONTRIBUTING.md` first.
+
+        Requests to bypass private-account restrictions, defeat bot detection,
+        handle passwords or session tokens, or scrape faster will be closed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation you ran into, not just the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This only involves content the logged-in account can already see
+          required: true
+        - label: This does not involve credentials, bot-detection evasion, or faster request rates
+          required: true
