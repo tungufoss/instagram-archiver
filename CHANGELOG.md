@@ -7,17 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-27
+
 Describing an account without downloading it, and reading what only the
 account itself can see.
-
-### Changed
-
-- Each account's records now live in `<account>/metadata/` - the index, post
-  list, comments and follower history - rather than at the archive root or
-  loose among the pictures. A file browser opened on an account folder shows
-  photographs and nothing else, and two accounts never share a file.
-- Comment rows carry the account whose post they belong to, as well as the
-  person who wrote them.
 
 ### Added
 
@@ -29,8 +22,18 @@ account itself can see.
   snapshot, with a dated snapshot and a `followers.csv` timeseries. Its own
   command, never part of archiving.
 - `--comments` records comments - username, time and text - in their own
-  files. Off by default.
+  files, read from the rendered page since Instagram leaves
+  `preview_comments` empty even on a post with 4,193. Off by default.
 - Captions, like counts, comment counts and reel play counts.
+
+### Changed
+
+- Each account's records now live in `<account>/metadata/` - the index, post
+  list, comments and follower history - rather than at the archive root or
+  loose among the pictures. A file browser opened on an account folder shows
+  photographs and nothing else, and two accounts never share a file.
+- Comment rows carry the account whose post they belong to, as well as the
+  person who wrote them.
 
 ### Fixed
 
@@ -56,20 +59,6 @@ Reading an account as a viewer and again while logged in as it:
   on the reels tab, which the account can see. Read from there.
 
 The README carries the full table.
-
-
-### Added
-
-- `scan`, which records what a profile posted without downloading anything:
-  date and exact timestamp, post or reel, photo and video counts, likes,
-  comment count and caption, one row per post in `posts.csv` / `posts.json`
-  in the account's folder. About 3 seconds a post against 30 for archiving.
-- `followers`, which records who follows an account and reports who joined or
-  left since the last snapshot. Explicitly asked for, never part of a
-  normal run.
-- Like counts and comment counts on every post.
-- Comments read from the rendered page, since Instagram does not put them in
-  the page JSON - `preview_comments` is empty even on a post with 4,193.
 
 ### Known issues
 
@@ -219,6 +208,7 @@ Instagram shows. 15 minutes.
   are written to `skipped-reels.txt`.
 - Stories, highlights and archived posts are not covered.
 
-[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tungufoss/instagram-archiver/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tungufoss/instagram-archiver/releases/tag/v0.1.0

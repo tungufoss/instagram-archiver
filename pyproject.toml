@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "instagram-archiver"
-version = "0.3.0.dev0"
+version = "0.3.0"
 description = "Archive Instagram photos and videos your own logged-in account can already see."
 readme = "README.md"
 requires-python = ">=3.10"
